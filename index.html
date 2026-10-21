@@ -76,6 +76,8 @@ h1{font-family:var(--display); font-weight:700; font-size:1.9rem; line-height:1.
 .sgskill.rel{background:transparent; border-left-color:var(--line); padding-block:6px}
 .sgskill.rel .sgk{color:var(--muted)}
 .chip.sgchip{border-color:var(--sg-line); color:var(--sg)}
+.chip.learnchip{border-color:rgba(139,233,253,.45); color:var(--link)}
+.chip.learnchip[aria-pressed="true"]{background:var(--link); border-color:var(--link); color:#21222C; border-style:solid}
 .chip.sgchip[aria-pressed="true"]{background:var(--sg); border-color:var(--sg); color:#21222C; border-style:solid}
 .meta{display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding-bottom:10px; border-bottom:2px solid var(--accent-soft); font-family:var(--mono); font-size:.74rem; letter-spacing:.04em; text-transform:uppercase; color:var(--muted)}
 .meta .pos{font-variant-numeric:tabular-nums; white-space:nowrap}
@@ -275,7 +277,7 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
     <span class="eyebrow">AI-103 · Microsoft Learn study deck</span>
     <h1>AI-103 Flashcards</h1>
     <details class="howto"><summary>How this deck works</summary>
-    <p class="lede">Every area of the exam, grouped by its domain and weight. Pick the best of four answers, or switch to flipping and saying the answer out loud. A wrong pick explains why it's wrong and what it belongs to. A right one moves to the next card after a second; click anywhere to stay and read. Your misses become the review pile. Cards with a yellow edge and &#9733; test a skill named in the AI-103 study guide; use Study guide only to drill just those.</p>
+    <p class="lede">Every area of the exam, grouped by its domain and weight. Pick the best of four answers, or switch to flipping and saying the answer out loud. A wrong pick explains why it's wrong and what it belongs to. A right one moves to the next card after a second; click anywhere to stay and read. Your misses become the review pile. Cards with a yellow edge and &#9733; test a skill named in the AI-103 study guide; use Study guide only to drill just those. Learn modules only keeps the cards whose topic is taught in the AI-103 Microsoft Learn modules and drops the ones that come only from other Microsoft docs. The counts on the chips follow whichever of these is on.</p>
     <p class="lede">Concept cards are the ones to master. For Code cards, recognize the name and say what it does. Fill in the function shows real Microsoft sample code with one name blanked out: pick it from four choices (or switch to typing it), then press Enter for the next card.</p>
       </details>
   </header>
@@ -300,6 +302,7 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
         <button class="chip" data-kind="code" id="kind-code" type="button">Code <span class="n"></span></button>
         <button class="chip" data-kind="fill" id="kind-fill" type="button">Fill in the function <span class="n"></span></button>
         <button class="chip toggle sgchip" id="sgOnly" type="button" aria-pressed="false" title="Only cards that test a skill named in the AI-103 study guide">&#9733; Study guide only <span class="n"></span></button>
+        <button class="chip toggle learnchip" id="learnOnly" type="button" aria-pressed="false" title="Only cards whose topic is taught in the AI-103 Microsoft Learn modules">Learn modules only <span class="n"></span></button>
       </div>
     </div>
     <div class="row">
@@ -330,7 +333,7 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
     </div>
     <div class="empty" id="empty" hidden>
       <strong>No cards match</strong>
-      <span>Turn off Missed only or Study guide only, or pick another area or card type.</span>
+      <span>Turn off Missed only, Study guide only or Learn modules only, or pick another area or card type.</span>
     </div>
 
     <div class="fillarea" id="fillArea" hidden>
@@ -499,6 +502,11 @@ function modLine(c){
   if (!m) return "Microsoft docs (source isn't a Learn module)";
   const x = MODULES[m[1]];
   return x ? x[0] + " · Module " + x[1] + ": " + x[2] : "Learn module outside the AI-103 course";
+}
+// True when the card's topic is taught in one of the AI-103 Learn modules (by its source page or its module mapping)
+function inLearn(c){
+  const m = c.mod ? [null, c.mod] : (c.src && c.src.u || "").match(/\/training\/modules\/([^\/?#]+)/);
+  return !!(m && MODULES[m[1]]);
 }
 // Exam domains and their weights, from the AI-103 study guide
 const GROUPS = [
@@ -1009,6 +1017,7 @@ CARDS.forEach(c => {
   if (c.kind === "fill") prepFill(c);
   else if (!c.kind) c.kind = CODE.has(c.id) ? "code" : "concept";
 });
+CARDS.forEach(c => { c.learn = inLearn(c); });
 // Study guide tie per card: "direct" cards test a skill the AI-103 study guide names; "related" ones sit near one
 if (typeof SG !== "undefined") CARDS.forEach(c => {
   const t = SG[c.id]; if (!t || !t.skill || !SKILLS[t.skill]) return;
@@ -1058,7 +1067,7 @@ let marks = {};
 try { marks = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { marks = {}; }
 function save(){ try { localStorage.setItem(KEY, JSON.stringify(marks)); } catch (e) {} }
 
-const state = {deck:"all", kind:"all", missedOnly:false, sgOnly:false, shuffle:false, order:[], i:0, flipped:false, typed:null, picked:false, opts:null, optsFor:null};
+const state = {deck:"all", kind:"all", missedOnly:false, sgOnly:false, learnOnly:false, shuffle:false, order:[], i:0, flipped:false, typed:null, picked:false, opts:null, optsFor:null};
 const $ = id => document.getElementById(id);
 
 // Vision cards from other areas are cross-listed under Computer vision through c.also
@@ -1072,8 +1081,9 @@ function matchDeck(c, d){
 }
 function inDeck(c){ return matchDeck(c, state.deck); }
 function inKind(c){ return state.kind === "all" || c.kind === state.kind; }
+function inToggles(c){ return (!state.sgOnly || c.sg) && (!state.learnOnly || c.learn); }
 function pool(){
-  return CARDS.filter(c => inDeck(c) && inKind(c) && (!state.sgOnly || c.sg) && (!state.missedOnly || marks[c.id] === "miss")).map(c => c.id);
+  return CARDS.filter(c => inDeck(c) && inKind(c) && inToggles(c) && (!state.missedOnly || marks[c.id] === "miss")).map(c => c.id);
 }
 function shuffled(a){
   const b = a.slice();
@@ -1131,13 +1141,15 @@ function render(){
   document.querySelectorAll("[data-kind]").forEach(b => {
     const k = b.dataset.kind;
     b.setAttribute("aria-pressed", String(k === state.kind));
-    b.querySelector(".n").textContent = CARDS.filter(c => inDeck(c) && (!state.sgOnly || c.sg) && (k === "all" || c.kind === k)).length;
+    b.querySelector(".n").textContent = CARDS.filter(c => inDeck(c) && inToggles(c) && (k === "all" || c.kind === k)).length;
   });
   $("sgOnly").setAttribute("aria-pressed", String(state.sgOnly));
   const lab = sel => { const b = document.querySelector(sel); return b ? b.firstChild.textContent.trim() : ""; };
   $("fSummary").textContent = [lab('[data-deck][aria-pressed="true"]'), lab('[data-kind][aria-pressed="true"]'),
-    state.sgOnly ? "Study guide only" : "", state.missedOnly ? "Missed only" : "", state.shuffle ? "Shuffled" : ""].filter(Boolean).join(" · ");
-  $("sgOnly").querySelector(".n").textContent = CARDS.filter(c => inDeck(c) && inKind(c) && c.sg).length;
+    state.sgOnly ? "Study guide only" : "", state.learnOnly ? "Learn modules only" : "", state.missedOnly ? "Missed only" : "", state.shuffle ? "Shuffled" : ""].filter(Boolean).join(" · ");
+  $("sgOnly").querySelector(".n").textContent = CARDS.filter(c => inDeck(c) && inKind(c) && (!state.learnOnly || c.learn) && c.sg).length;
+  $("learnOnly").setAttribute("aria-pressed", String(state.learnOnly));
+  $("learnOnly").querySelector(".n").textContent = CARDS.filter(c => inDeck(c) && inKind(c) && (!state.sgOnly || c.sg) && c.learn).length;
   $("missedOnly").setAttribute("aria-pressed", String(state.missedOnly));
   $("shuffle").setAttribute("aria-pressed", String(state.shuffle));
 
@@ -1325,6 +1337,7 @@ document.querySelectorAll("[data-deck]").forEach(b => b.addEventListener("click"
 document.querySelectorAll("[data-kind]").forEach(b => b.addEventListener("click", () => { state.kind = b.dataset.kind; rebuild(); }));
 $("missedOnly").addEventListener("click", () => { state.missedOnly = !state.missedOnly; rebuild(); });
 $("sgOnly").addEventListener("click", () => { state.sgOnly = !state.sgOnly; rebuild(); });
+$("learnOnly").addEventListener("click", () => { state.learnOnly = !state.learnOnly; rebuild(); });
 try { if (localStorage.getItem("ai103-filters-open") === "0") $("fBox").open = false; } catch (e) {}
 $("fBox").addEventListener("toggle", () => { try { localStorage.setItem("ai103-filters-open", $("fBox").open ? "1" : "0"); } catch (e) {} });
 $("shuffle").addEventListener("click", () => { state.shuffle = !state.shuffle; const c = current(); rebuild(c && c.id); });
