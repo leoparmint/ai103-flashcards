@@ -1216,6 +1216,33 @@ function render(){
   $("sGot").textContent = got;
   $("sMiss").textContent = miss;
   $("sLeft").textContent = scope.length - got - miss;
+  saveSession();
+}
+// Session: filters, shuffled order and the current card or question survive a refresh (this browser only)
+const SKEY = "ai103-session-v1";
+let sessionReady = false;
+function loadSession(){ try { return JSON.parse(localStorage.getItem(SKEY)) || {}; } catch (e) { return {}; } }
+function saveSession(){
+  if (!sessionReady) return;
+  try {
+    const s = loadSession();
+    if (mode === "flash" || !s.f) {
+      const c = current();
+      s.f = {deck: state.deck, kind: state.kind, missedOnly: state.missedOnly, sgOnly: state.sgOnly, learnOnly: state.learnOnly,
+             shuffle: state.shuffle, order: state.shuffle ? state.order : null, id: c ? c.id : null};
+    }
+    if (typeof ps !== "undefined" && (mode === "practice" || !s.p)) {
+      const q = pCur();
+      s.p = {dom: ps.dom, missedOnly: ps.missedOnly, shuffle: ps.shuffle, order: ps.shuffle ? ps.order : null, id: q ? q.id : null};
+    }
+    localStorage.setItem(SKEY, JSON.stringify(s));
+  } catch (e) {}
+}
+// Put a saved shuffled order back, keeping only ids still in the pool and adding any new ones at the end
+function restoreOrder(order, saved){
+  if (!Array.isArray(saved)) return order;
+  const pool = new Set(order), kept = saved.filter(id => pool.has(id)), seen = new Set(kept);
+  return kept.concat(order.filter(id => !seen.has(id)));
 }
 
 function flip(){ if (!current()) return; state.flipped = !state.flipped; render(); }
@@ -1386,7 +1413,20 @@ document.addEventListener("keydown", e => {
   else if (e.key === "2") grade("got");
 });
 
-rebuild();
+let savedF = null;
+(function restoreFlash(){
+  const f = loadSession().f; if (!f) return;
+  if ([...document.querySelectorAll("[data-deck]")].some(b => b.dataset.deck === f.deck)) state.deck = f.deck;
+  if (["all", "concept", "code", "fill"].includes(f.kind)) state.kind = f.kind;
+  state.missedOnly = !!f.missedOnly; state.sgOnly = !!f.sgOnly; state.learnOnly = !!f.learnOnly; state.shuffle = !!f.shuffle;
+  savedF = f;
+})();
+rebuild(savedF && savedF.id);
+if (savedF && savedF.shuffle) {
+  state.order = restoreOrder(state.order, savedF.order);
+  state.i = Math.max(0, state.order.indexOf(savedF.id));
+  render();
+}
 
 // ===== Practice questions =====
 let mode = "flash";   // which view is showing: "flash" or "practice"
@@ -1726,6 +1766,7 @@ function pShow(){
   }
   pButton();
   pScore();
+  saveSession();
 }
 function pScore(){
   const rows = DOMAINS.map(d => {
@@ -1790,7 +1831,19 @@ $("mode-practice").addEventListener("click", () => setMode("practice"));
   if (location.hash === "#flashcards") m = "flash";
   setMode(m === "practice" ? "practice" : "flash");
 })();
-pRebuild();
+const savedP = loadSession().p;
+if (savedP) {
+  if ([...document.querySelectorAll("[data-pdom]")].some(b => b.dataset.pdom === savedP.dom)) ps.dom = savedP.dom;
+  ps.missedOnly = !!savedP.missedOnly; ps.shuffle = !!savedP.shuffle;
+}
+pRebuild(savedP && savedP.id);
+if (savedP && savedP.shuffle) {
+  ps.order = restoreOrder(ps.order, savedP.order);
+  ps.i = Math.max(0, ps.order.indexOf(savedP.id));
+  pShow();
+}
+sessionReady = true;
+saveSession();
 </script>
 
 </body>
