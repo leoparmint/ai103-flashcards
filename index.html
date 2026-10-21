@@ -132,6 +132,51 @@ pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overfl
 .mode .n{font-family:var(--mono); font-size:.75rem; font-weight:500; margin-left:4px; padding:1px 6px; border-radius:999px; background:var(--rev-soft); color:var(--rev)}
 .mode[aria-selected="true"] .n{background:rgba(33,34,44,.25); color:inherit}
 .mode .n:empty{display:none}
+/* Mock exam: timed, exam-shaped run with a results report */
+.exsetup{display:flex; flex-direction:column; gap:14px}
+.exopts{display:flex; flex-direction:column; gap:8px}
+.exopt{display:grid; grid-template-columns:auto minmax(0,1fr); gap:10px; align-items:start; padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--surface); cursor:pointer}
+.exopt input{margin:3px 0 0; accent-color:var(--accent); width:18px; height:18px}
+.exopt:has(input:checked){border-color:var(--accent); background:var(--accent-soft)}
+.exopt b{display:block; font-family:var(--display); font-size:1.05rem}
+.exopt span span{color:var(--muted); font-size:.93rem}
+.excheck{display:flex; gap:8px; align-items:center; color:var(--muted); font-size:.95rem}
+.excheck input{accent-color:var(--accent); width:18px; height:18px}
+.exstart{align-self:flex-start; min-width:220px}
+.exfacts{border:1px solid var(--line); border-radius:12px; padding:12px 16px; background:var(--surface); font-size:.95rem; color:var(--muted)}
+.exfacts h3{margin:0 0 6px; font-family:var(--display); font-size:1rem; color:var(--ink)}
+.exfacts ul{margin:0; padding-left:1.2em; display:flex; flex-direction:column; gap:4px}
+.exbar{position:sticky; top:0; z-index:5; display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 14px; margin:0 -2px; background:var(--bg); border-bottom:1px solid var(--line); font-size:.93rem; color:var(--muted)}
+.extimer{font-family:var(--mono); font-size:1.05rem; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; flex:none}
+#exPos{min-width:0}
+.extimer.warn{color:var(--miss)}
+.exflag{display:inline-flex; gap:6px; align-items:center; font-family:var(--body); text-transform:none; letter-spacing:0; font-size:.88rem; color:var(--rev); cursor:pointer}
+.exflag input{accent-color:var(--rev); width:16px; height:16px}
+.exnav{display:grid; grid-template-columns:auto 1fr auto; gap:8px}
+.exgrid{display:grid; grid-template-columns:repeat(auto-fill, minmax(46px, 1fr)); gap:6px}
+.exgrid button{font:inherit; font-family:var(--mono); font-size:.9rem; padding:8px 0; border-radius:8px; border:1px solid var(--line); background:var(--surface); color:var(--muted); cursor:pointer; position:relative}
+.exgrid button.done{color:var(--ink); border-color:var(--accent)}
+.exgrid button.flag::after{content:""; position:absolute; top:3px; right:3px; width:7px; height:7px; border-radius:50%; background:var(--rev)}
+.exgrid button.cur{outline:2px solid var(--accent); outline-offset:1px}
+.exrev{display:flex; flex-direction:column; gap:12px; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 18px}
+.exrev h2{margin:0; font-family:var(--display); font-size:1.15rem}
+.exrev .exsum{color:var(--muted); font-size:.95rem}
+.exrev .exbtns{display:flex; flex-wrap:wrap; gap:8px}
+.btn.danger{color:var(--miss); border-color:var(--miss)}
+.exscore{display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 16px}
+.exscore .big{font-family:var(--display); font-size:2.4rem; font-weight:700}
+.exscore .big.pass{color:var(--good)} .exscore .big.fail{color:var(--miss)}
+.exitems{display:flex; flex-direction:column; gap:8px}
+.exitem{border:1px solid var(--line); border-radius:12px; background:var(--surface)}
+.exitem > summary{cursor:pointer; padding:10px 14px; display:flex; flex-wrap:wrap; gap:6px 10px; align-items:baseline; list-style:none}
+.exitem > summary::-webkit-details-marker{display:none}
+.exitem .exbody{padding:0 14px 14px; display:flex; flex-direction:column; gap:10px}
+.exitem .yours{font-size:.95rem}
+.exitem .yours b{color:var(--muted); font-weight:500; font-family:var(--mono); font-size:.72rem; letter-spacing:.05em; text-transform:uppercase; margin-right:6px}
+.pill.part{background:var(--rev-soft); color:var(--rev)}
+.exhist{width:100%; border-collapse:collapse; font-size:.93rem; font-variant-numeric:tabular-nums}
+.exhist th, .exhist td{padding:6px; border-bottom:1px solid var(--line); text-align:left}
+.exhist th{font-family:var(--mono); font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); font-weight:500}
 /* Review tab: everything still to review, flashcards and practice questions */
 .rsec{display:flex; flex-direction:column; gap:10px}
 .rhead{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px}
@@ -242,7 +287,7 @@ details.others li{font-size:.95rem}
 .btn.check{color:var(--accent-ink); background:var(--accent); border-color:var(--accent)}
 
 /* Mode switch: flashcards or exam-style practice */
-.modes{display:inline-grid; grid-template-columns:repeat(3, auto); gap:4px; padding:4px; background:var(--surface); border:1px solid var(--line); border-radius:12px; align-self:flex-start; max-width:100%}
+.modes{display:inline-flex; flex-wrap:wrap; gap:4px; padding:4px; background:var(--surface); border:1px solid var(--line); border-radius:12px; align-self:flex-start; max-width:100%}
 .mode{font:inherit; font-weight:600; font-size:.95rem; border:0; border-radius:9px; padding:8px 14px; background:none; color:var(--muted); cursor:pointer; min-height:40px}
 .mode[aria-selected="true"]{background:var(--accent); color:var(--accent-ink)}
 .mode:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
@@ -357,6 +402,7 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
     <button class="mode" role="tab" id="mode-flash" aria-selected="true" aria-controls="flashView" type="button">Flashcards</button>
     <button class="mode" role="tab" id="mode-practice" aria-selected="false" aria-controls="practiceView" type="button">Practice questions</button>
     <button class="mode" role="tab" id="mode-review" aria-selected="false" aria-controls="reviewView" type="button">Review<span class="n" id="revTabN"></span></button>
+    <button class="mode" role="tab" id="mode-exam" aria-selected="false" aria-controls="examView" type="button">Mock exam</button>
   </div>
 
   <div class="view" id="flashView" role="tabpanel" aria-labelledby="mode-flash">
@@ -521,6 +567,64 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
       <p class="scorenote">The exam passes at 700 of 1000. Aim for about 80% here on questions you haven't seen.</p>
       <button class="textbtn" id="pClear" type="button">Clear practice results</button>
     </section>
+  </div>
+
+  <div class="view" id="examView" role="tabpanel" aria-labelledby="mode-exam" hidden>
+    <section class="exsetup" id="exSetup">
+      <p class="lede">A timed run in the exam's shape: questions drawn by domain weight, no feedback until you finish, Mark for review and a review screen, and a case study as a final section. You get an estimated score on the exam's 1000-point scale, a breakdown by domain, and every answer explained. Anything you miss goes into your review pile.</p>
+      <div class="exopts" role="radiogroup" aria-label="Exam length">
+        <label class="exopt"><input type="radio" name="exlen" value="full" checked><span><b>Full exam</b><span>50 questions in 120 minutes: 44 questions, then a 6-question case study</span></span></label>
+        <label class="exopt"><input type="radio" name="exlen" value="half"><span><b>Half exam</b><span>25 questions in 60 minutes: 19 questions, then a 6-question case study</span></span></label>
+        <label class="exopt"><input type="radio" name="exlen" value="quick"><span><b>Quick check</b><span>12 questions in 25 minutes, no case study</span></span></label>
+      </div>
+      <label class="excheck"><input type="checkbox" id="exFresh" checked> Use questions I haven't answered in Practice first</label>
+      <button class="btn check exstart" id="exStart" type="button">Start the exam</button>
+      <div id="exResume" hidden></div>
+      <div class="exfacts">
+        <h3>How the real AI-103 works</h3>
+        <ul>
+          <li>120 minutes. Most Microsoft exams have 40 to 60 questions; Microsoft doesn't publish AI-103's exact count.</li>
+          <li>The passing score is 700 on a scale of 1 to 1000. Scaled scores aren't a simple percentage, so treat this page's score as an estimate.</li>
+          <li>You can mark questions for review and use a review screen before you finish a section. Case studies come as their own section, and once you move past a section you can't go back to it. This mock works the same way.</li>
+          <li>You can open Microsoft Learn during the exam, but the timer keeps running and searching for every answer won't fit in the time.</li>
+          <li>Expect build-list, code-completion, Yes/No and multiple-response items, not just plain multiple choice.</li>
+        </ul>
+        <p class="srcline" style="margin:8px 0 0">Sources: <a class="link" href="https://learn.microsoft.com/en-us/credentials/certifications/azure-ai-apps-and-agents-developer-associate/" target="_blank" rel="noopener">AI-103 certification page</a> · <a class="link" href="https://learn.microsoft.com/en-us/credentials/support/exam-duration-exam-experience" target="_blank" rel="noopener">Exam duration and experience</a></p>
+      </div>
+      <div id="exHistory"></div>
+    </section>
+
+    <section id="exRun" hidden>
+      <div class="exbar"><span id="exPos"></span><span class="extimer" id="exTimer" aria-live="off"></span></div>
+      <div id="exQuestion">
+        <article class="qcard">
+          <div class="meta"><span id="exMeta"></span><label class="exflag"><input type="checkbox" id="exFlag"> Mark for review</label></div>
+          <details class="case" id="exCase" open hidden>
+            <summary>Case study: <span id="exCaseTitle"></span></summary>
+            <div class="casebody" id="exCaseBody"></div>
+          </details>
+          <div class="stem" id="exStem"></div>
+          <div class="answer" id="exAnswer"></div>
+        </article>
+        <div class="exnav" style="margin-top:12px">
+          <button class="btn nav" id="exPrev" type="button" aria-label="Previous question">&lsaquo;</button>
+          <button class="btn" id="exToReview" type="button">Review screen</button>
+          <button class="btn nav" id="exNext" type="button" aria-label="Next question">&rsaquo;</button>
+        </div>
+      </div>
+      <div class="exrev" id="exReviewScreen" hidden>
+        <h2 id="exRevTitle"></h2>
+        <p class="exsum" id="exRevSum"></p>
+        <div class="exgrid" id="exGrid"></div>
+        <div class="exbtns">
+          <button class="btn" id="exBack" type="button">Back to the questions</button>
+          <button class="btn check" id="exEnd" type="button"></button>
+          <button class="btn danger" id="exQuit" type="button">Quit without scoring</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="exResult" hidden></section>
   </div>
 
   <footer>
@@ -2077,12 +2181,16 @@ function setMode(m){
   $("flashView").hidden = m !== "flash";
   $("practiceView").hidden = m !== "practice";
   $("reviewView").hidden = m !== "review";
+  $("mode-exam").setAttribute("aria-selected", String(m === "exam"));
+  $("examView").hidden = m !== "exam";
   if (m === "review") renderReview();
+  if (m === "exam" && EX_READY) showExam();
   try { localStorage.setItem("ai103-mode", m); } catch (e) {}
 }
 $("mode-flash").addEventListener("click", () => setMode("flash"));
 $("mode-practice").addEventListener("click", () => setMode("practice"));
 $("mode-review").addEventListener("click", () => setMode("review"));
+$("mode-exam").addEventListener("click", () => setMode("exam"));
 (function initMode(){
   // No practice questions yet: hide the switch and stay on flashcards
   if (!PRACTICE.length) { document.querySelector(".modes").hidden = true; setMode("flash"); return; }
@@ -2091,7 +2199,8 @@ $("mode-review").addEventListener("click", () => setMode("review"));
   if (location.hash === "#practice") m = "practice";
   if (location.hash === "#flashcards") m = "flash";
   if (location.hash === "#review") m = "review";
-  setMode(["practice", "review"].includes(m) ? m : "flash");
+  if (location.hash === "#exam") m = "exam";
+  setMode(["practice", "review", "exam"].includes(m) ? m : "flash");
 })();
 const savedP = loadSession().p;
 if (savedP) {
@@ -2195,6 +2304,274 @@ $("reviewView").addEventListener("click", e => {
 });
 reviewTabCount();
 if (mode === "review") renderReview();
+// ===== Mock exam =====
+// var (not let) so setMode can safely check these before this part of the script has run
+var EX_READY = false, ex = null, exTimerId = null;
+var EXKEY = "ai103-mock-v1", EXHKEY = "ai103-mock-history-v1";
+var EX_LENGTHS = {full: {n: 50, min: 120, kase: true, label: "Full exam"}, half: {n: 25, min: 60, kase: true, label: "Half exam"}, quick: {n: 12, min: 25, kase: false, label: "Quick check"}};
+var EX_WEIGHTS = {gen: 0.325, ops: 0.275, cv: 0.135, ie: 0.135, lang: 0.13};
+function exLoad(){ try { return JSON.parse(localStorage.getItem(EXKEY)); } catch (e) { return null; } }
+function exSave(){ try { localStorage.setItem(EXKEY, JSON.stringify(ex)); } catch (e) {} }
+function exHistory(){ try { return JSON.parse(localStorage.getItem(EXHKEY)) || []; } catch (e) { return []; } }
+function shuffleArr(a){ a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+// Draw questions by domain weight, unseen practice questions first if asked; a case study goes last as its own section
+function exBuild(lenKey, fresh){
+  const L = EX_LENGTHS[lenKey];
+  const cases = Object.keys(CASES);
+  const caseId = L.kase && cases.length ? cases[Math.floor(Math.random() * cases.length)] : null;
+  const caseQs = caseId ? PRACTICE.filter(q => q.case === caseId).map(q => q.id) : [];
+  const n1 = L.n - caseQs.length;
+  const pool = PRACTICE.filter(q => !q.case);
+  const order = list => fresh ? shuffleArr(list.filter(q => !presults[q.id])).concat(shuffleArr(list.filter(q => presults[q.id]))) : shuffleArr(list);
+  const want = {}; let total = 0;
+  Object.keys(EX_WEIGHTS).forEach(d => { want[d] = Math.round(EX_WEIGHTS[d] * n1); total += want[d]; });
+  while (total > n1) { const d = Object.keys(want).sort((a, b) => want[b] - want[a])[0]; want[d]--; total--; }
+  while (total < n1) { want.gen++; total++; }
+  let picked = [];
+  Object.keys(want).forEach(d => { picked = picked.concat(order(pool.filter(q => q.domain === d)).slice(0, want[d])); });
+  if (picked.length < n1) { const left = order(pool.filter(q => !picked.includes(q))); picked = picked.concat(left.slice(0, n1 - picked.length)); }
+  return {status: "running", len: lenKey, sections: caseId ? [shuffleArr(picked.map(q => q.id)), caseQs] : [shuffleArr(picked.map(q => q.id))],
+          caseId, sec: 0, i: 0, ans: {}, flag: {}, start: Date.now(), deadline: Date.now() + L.min * 60000, minutes: L.min, view: "q"};
+}
+function exStart(){
+  const len = (document.querySelector('input[name="exlen"]:checked') || {}).value || "full";
+  ex = exBuild(len, $("exFresh").checked);
+  exSave(); showExam(); window.scrollTo(0, 0);
+}
+function exCur(){ return PBY[ex.sections[ex.sec][ex.i]]; }
+function exAnswered(id){
+  const q = PBY[id], r = ex.ans[id];
+  return !!(q && r && pComplete(q, r));
+}
+
+// Answer area: same item formats as Practice, in the exam's own container (input names prefixed so they never clash)
+function exResponse(q){
+  const box = $("exAnswer");
+  if (q.type === "single" || q.type === "multi") return [...box.querySelectorAll("input:checked")].map(i => Number(i.value));
+  if (q.type === "order") return (ex.ans[q.id] || []).slice();
+  if (q.type === "dropdown") return [...box.querySelectorAll("select")].sort((a, b) => a.dataset.s - b.dataset.s).map(s => s.value === "" ? null : Number(s.value));
+  if (q.type === "yesno") return q.statements.map((s, i) => { const c = box.querySelector('input[name="ex_yn' + i + '"]:checked'); return c ? c.value === "1" : null; });
+  return [];
+}
+function exLimitMulti(q){
+  const boxes = [...$("exAnswer").querySelectorAll("input")];
+  const n = boxes.filter(b => b.checked).length;
+  boxes.forEach(b => { if (!b.checked) b.disabled = n >= q.answer.length; });
+}
+function exDrawSeq(q){
+  const box = $("exAnswer"), seq = box.querySelector(".seq"), cur = ex.ans[q.id] || [];
+  seq.innerHTML = cur.map((i, k) => '<li data-k="' + k + '"><span class="stext">' + inl(q.actions[i]) + '</span><span class="seqbtns">' +
+    '<button type="button" class="mini" data-act="up" aria-label="Move up"' + (k === 0 ? " disabled" : "") + '>&uarr;</button>' +
+    '<button type="button" class="mini" data-act="down" aria-label="Move down"' + (k === cur.length - 1 ? " disabled" : "") + '>&darr;</button>' +
+    '<button type="button" class="mini" data-act="del" aria-label="Remove">&times;</button></span></li>').join("");
+  box.querySelectorAll(".act").forEach(b => { b.disabled = cur.includes(Number(b.dataset.i)) || cur.length >= q.answer.length; });
+  seq.querySelectorAll(".mini").forEach(b => b.addEventListener("click", () => {
+    const list = ex.ans[q.id] || [], k = Number(b.closest("li").dataset.k), a = b.dataset.act;
+    if (a === "del") list.splice(k, 1);
+    else { const j = a === "up" ? k - 1 : k + 1; [list[k], list[j]] = [list[j], list[k]]; }
+    ex.ans[q.id] = list; exSave(); exDrawSeq(q);
+  }));
+}
+function exShowQuestion(){
+  const q = exCur(), L = EX_LENGTHS[ex.len];
+  const secN = ex.sections.length, total = ex.sections[ex.sec].length;
+  $("exPos").textContent = (secN > 1 ? "Section " + (ex.sec + 1) + " of " + secN + " · " : "") + "Question " + (ex.i + 1) + " of " + total;
+  $("exMeta").innerHTML = '<span class="cnum">Q' + q.num + '</span>' + esc(TYPE_LABEL[q.type] + (q.type === "multi" ? " · choose " + NUMW[q.answer.length] : ""));
+  $("exFlag").checked = !!ex.flag[q.id];
+  const c = q.case && CASES[q.case];
+  $("exCase").hidden = !c;
+  if (c) { $("exCaseTitle").textContent = c.title; $("exCaseBody").innerHTML = c.html; }
+  $("exStem").innerHTML = q.stem;
+  $("exAnswer").innerHTML = answerHTML(q).replace(/name="/g, 'name="ex_');
+  // put back what was answered before
+  const r = ex.ans[q.id], box = $("exAnswer");
+  if (r) {
+    if (q.type === "single" || q.type === "multi") box.querySelectorAll("input").forEach(el => { el.checked = r.includes(Number(el.value)); });
+    if (q.type === "dropdown") box.querySelectorAll("select").forEach(sel => { const v = r[Number(sel.dataset.s)]; sel.value = v === null || v === undefined ? "" : String(v); });
+    if (q.type === "yesno") r.forEach((v, i) => { if (v === null) return; const el = box.querySelector('input[name="ex_yn' + i + '"][value="' + (v ? 1 : 0) + '"]'); if (el) el.checked = true; });
+  }
+  if (q.type === "multi") exLimitMulti(q);
+  box.querySelectorAll("input, select").forEach(el => el.addEventListener("change", () => {
+    if (q.type === "multi") exLimitMulti(q);
+    ex.ans[q.id] = exResponse(q); exSave();
+  }));
+  if (q.type === "order") {
+    box.querySelectorAll(".act").forEach(b => b.addEventListener("click", () => {
+      const list = ex.ans[q.id] || [];
+      if (list.length >= q.answer.length || list.includes(Number(b.dataset.i))) return;
+      list.push(Number(b.dataset.i)); ex.ans[q.id] = list; exSave(); exDrawSeq(q);
+    }));
+    exDrawSeq(q);
+  }
+  $("exPrev").disabled = ex.i === 0;
+}
+function exShowReview(){
+  const ids = ex.sections[ex.sec], last = ex.sec === ex.sections.length - 1;
+  const done = ids.filter(exAnswered).length, flagged = ids.filter(id => ex.flag[id]).length;
+  $("exRevTitle").textContent = ex.sections.length > 1 ? "Review section " + (ex.sec + 1) + (ex.sec === 1 ? " (case study)" : "") : "Review your answers";
+  $("exRevSum").textContent = done + " of " + ids.length + " answered" + (ids.length - done ? ", " + (ids.length - done) + " unanswered" : "") +
+    (flagged ? ", " + flagged + " marked for review" : "") + ". Tap a number to go to that question.";
+  $("exGrid").innerHTML = ids.map((id, k) => '<button type="button" data-k="' + k + '" class="' + (exAnswered(id) ? "done" : "") + (ex.flag[id] ? " flag" : "") +
+    (k === ex.i ? " cur" : "") + '" aria-label="Question ' + (k + 1) + (exAnswered(id) ? ", answered" : ", unanswered") + (ex.flag[id] ? ", marked for review" : "") + '">' + (k + 1) + '</button>').join("");
+  const end = $("exEnd"); end.classList.remove("armed");
+  end.textContent = last ? "Finish the exam" : "End section " + (ex.sec + 1) + " and start the case study";
+}
+function exRender(){
+  $("exSetup").hidden = true; $("exResult").hidden = true; $("exRun").hidden = false;
+  const onReview = ex.view === "review";
+  $("exQuestion").hidden = onReview; $("exReviewScreen").hidden = !onReview;
+  if (onReview) exShowReview(); else exShowQuestion();
+  exTick();
+}
+function exTick(){
+  if (!ex || ex.status !== "running") return;
+  const left = ex.deadline - Date.now();
+  if (left <= 0) { exFinish(true); return; }
+  const s = Math.floor(left / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+  const t = $("exTimer");
+  t.textContent = (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(sec).padStart(2, "0") + " left";
+  t.classList.toggle("warn", left < 10 * 60000);
+}
+function exStartTimer(){ if (exTimerId) clearInterval(exTimerId); exTimerId = setInterval(exTick, 1000); }
+function exGo(k){ ex.i = k; ex.view = "q"; exSave(); exRender(); scrollToEl($("exRun")); }
+function exNext(){
+  if (ex.i < ex.sections[ex.sec].length - 1) exGo(ex.i + 1);
+  else { ex.view = "review"; exSave(); exRender(); scrollToEl($("exRun")); }
+}
+var exArm = null;
+function exEndSection(){
+  const b = $("exEnd"), last = ex.sec === ex.sections.length - 1;
+  if (!b.classList.contains("armed")) {
+    b.classList.add("armed");
+    b.textContent = last ? "Tap again to finish and see your score" : "Tap again: you can't come back to section " + (ex.sec + 1);
+    clearTimeout(exArm); exArm = setTimeout(() => { if (ex && ex.status === "running") exShowReview(); }, 5000);
+    return;
+  }
+  clearTimeout(exArm);
+  if (last) { exFinish(false); return; }
+  ex.sec++; ex.i = 0; ex.view = "q"; exSave(); exRender(); scrollToEl($("exRun"));
+}
+var exQuitArm = null;
+function exQuit(){
+  const b = $("exQuit");
+  if (!b.classList.contains("armed")) {
+    b.classList.add("armed"); b.textContent = "Tap again to discard this exam";
+    clearTimeout(exQuitArm); exQuitArm = setTimeout(() => { b.classList.remove("armed"); b.textContent = "Quit without scoring"; }, 4000);
+    return;
+  }
+  clearTimeout(exQuitArm); b.classList.remove("armed"); b.textContent = "Quit without scoring";
+  ex = null; try { localStorage.removeItem(EXKEY); } catch (e) {}
+  if (exTimerId) clearInterval(exTimerId);
+  showExam();
+}
+
+// Your answer in words, for the results list
+function exYours(q, r){
+  if (!r || !pComplete(q, r)) {
+    if (!r || !r.length || r.every(x => x === null)) return "No answer";
+  }
+  if (q.type === "single" || q.type === "multi") return r.map(i => LETTERS[i]).join(" and ");
+  if (q.type === "order") return r.map((i, k) => (k + 1) + ". " + inl(q.actions[i])).join("<br>");
+  if (q.type === "dropdown") return r.map((v, k) => "Blank " + (k + 1) + ": " + (v === null ? "none" : "<code>" + esc(q.slots[k].options[v]) + "</code>")).join(" · ");
+  if (q.type === "yesno") return r.map((v, k) => (k + 1) + ". " + (v === null ? "none" : v ? "Yes" : "No")).join(" · ");
+  return "";
+}
+function exFinish(timeUp){
+  if (!ex || ex.status !== "running") return;
+  if (exTimerId) clearInterval(exTimerId);
+  const ids = ex.sections.flat();
+  let P = 0, T = 0; const byDom = {};
+  const items = ids.map(id => {
+    const q = PBY[id], r = ex.ans[id] || [], [p, t] = pGrade(q, r);
+    P += p; T += t;
+    const d = byDom[q.domain] = byDom[q.domain] || {p: 0, t: 0, right: 0, n: 0};
+    d.p += p; d.t += t; d.n++; if (p === t) d.right++;
+    if (p < t && !preview[id]) preview[id] = {w: "wrong", at: Date.now()};
+    return {id, p, t};
+  });
+  psaveReview();
+  const pct = T ? P / T : 0, scaled = Math.round(pct * 1000);
+  ex.status = "done"; ex.timeUp = !!timeUp; ex.finished = Date.now();
+  ex.result = {P, T, pct, scaled, pass: scaled >= 700, byDom, items, used: Math.min(ex.finished, ex.deadline) - ex.start};
+  exSave();
+  const h = exHistory(); h.unshift({at: ex.finished, len: ex.len, n: ids.length, scaled, pass: scaled >= 700, used: ex.result.used});
+  try { localStorage.setItem(EXHKEY, JSON.stringify(h.slice(0, 20))); } catch (e) {}
+  showExam(); window.scrollTo(0, 0);
+}
+function fmtDur(ms){ const m = Math.round(ms / 60000); return m >= 60 ? Math.floor(m / 60) + " h " + (m % 60) + " min" : m + " min"; }
+function exRenderResult(){
+  const R = ex.result, L = EX_LENGTHS[ex.len];
+  const rows = DOMAINS.filter(d => R.byDom[d.id]).map(d => {
+    const x = R.byDom[d.id], pc = Math.round(100 * x.p / x.t);
+    return '<tr><td>' + esc(d.label) + '<span class="w">' + d.w + ' of the exam</span></td><td class="num">' + x.right + ' / ' + x.n + '</td><td class="num">' + pc + '%</td>' +
+      '<td class="barcell"><span class="bar"><i style="width:' + pc + '%"></i></span></td></tr>';
+  }).join("");
+  const missed = R.items.filter(x => x.p < x.t).length;
+  const list = R.items.map((x, k) => {
+    const q = PBY[x.id], r = ex.ans[x.id];
+    const st = x.p === x.t ? '<span class="pill got">Right</span>' : x.p > 0 ? '<span class="pill part">' + x.p + ' of ' + x.t + ' points</span>' : '<span class="pill miss">' + (r && r.length && !r.every(v => v === null) ? "Wrong" : "Unanswered") + '</span>';
+    const c = q.case && CASES[q.case];
+    return '<details class="exitem' + (x.p < x.t ? " missed" : "") + '"><summary><span class="cnum">Q' + q.num + '</span>' + st +
+      '<span class="rmeta">' + esc(DOM_LABEL[q.domain] + " · " + TYPE_LABEL[q.type]) + '</span><span class="rq" style="flex-basis:100%">' + esc(plainText(q.stem)) + '</span></summary>' +
+      '<div class="exbody">' + (c ? '<details class="case"><summary>Case study: ' + esc(c.title) + '</summary><div class="casebody">' + c.html + '</div></details>' : "") +
+      '<div class="stem">' + q.stem + '</div>' + exOptionsHTML(q) +
+      '<p class="yours"><b>Your answer</b>' + exYours(q, r) + '</p>' + keyHTML(q) + '<div class="explain">' + q.explain + '</div>' +
+      '<p class="srcline">Source: <a class="link" href="' + esc(q.src.u) + '" target="_blank" rel="noopener">' + esc(q.src.t) + '</a></p></div></details>';
+  }).join("");
+  $("exResult").innerHTML = '<div class="score">' +
+    '<div class="scorehead"><h2>' + esc(L.label) + ' result' + (ex.timeUp ? " (time ran out)" : "") + '</h2><span class="scoresum">' + fmtDur(R.used) + ' of ' + L.min + ' min used</span></div>' +
+    '<div class="exscore"><span class="big ' + (R.pass ? "pass" : "fail") + '">' + R.scaled + '</span><span>estimated score of 1000 · ' + (R.pass ? "a pass" : "below the 700 pass mark") + ' · ' +
+      Math.round(100 * R.pct) + '% of points, with partial credit on multi-part items</span></div>' +
+    '<div class="scorewrap"><table class="scoretable"><thead><tr><th>Domain</th><th class="num">Right</th><th class="num">Points</th><th class="barcell"><span class="sr">Bar</span></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<p class="scorenote">' + (missed ? missed + " question" + (missed > 1 ? "s" : "") + " you missed " + (missed > 1 ? "are" : "is") + " now in your Review tab." : "You got every question right.") + ' Microsoft scales scores, so this is a rough guide, not a prediction.</p>' +
+    '<div class="exbtns" style="display:flex; flex-wrap:wrap; gap:8px"><button class="btn check" id="exAgain" type="button">Take another exam</button>' +
+    (missed ? '<button class="btn" id="exOnlyMissed" type="button" aria-pressed="false">Show only what I missed</button>' : "") + '</div></div>' +
+    '<h2 style="font-family:var(--display); font-size:1.15rem; margin:18px 0 8px">Every question, with the answer</h2><div class="exitems" id="exItems">' + list + '</div>';
+  $("exAgain").addEventListener("click", () => { ex = null; try { localStorage.removeItem(EXKEY); } catch (e) {} showExam(); window.scrollTo(0, 0); });
+  if (missed) $("exOnlyMissed").addEventListener("click", e => {
+    const on = e.currentTarget.getAttribute("aria-pressed") !== "true";
+    e.currentTarget.setAttribute("aria-pressed", String(on));
+    e.currentTarget.textContent = on ? "Show every question" : "Show only what I missed";
+    $("exItems").querySelectorAll(".exitem").forEach(d => { d.hidden = on && !d.classList.contains("missed"); });
+  });
+}
+// The options themselves, so "Your answer: B" means something in the results list
+function exOptionsHTML(q){
+  if (q.type === "single" || q.type === "multi") return '<ol class="ropts" type="A">' + q.options.map((o, i) => '<li' + (q.answer.includes(i) ? ' class="ok"' : "") + '>' + inl(o) + '</li>').join("") + '</ol>';
+  if (q.type === "yesno") return '<ol class="ropts">' + q.statements.map(st => '<li>' + inl(st.text) + '</li>').join("") + '</ol>';
+  return "";
+}
+function exRenderSetup(){
+  $("exRun").hidden = true; $("exResult").hidden = true; $("exSetup").hidden = false;
+  const h = exHistory();
+  $("exHistory").innerHTML = h.length ? '<h3 style="font-family:var(--display); font-size:1rem; margin:4px 0 6px">Your past attempts</h3><table class="exhist"><thead><tr><th>Date</th><th>Exam</th><th>Score</th><th>Time</th></tr></thead><tbody>' +
+    h.map(x => '<tr><td>' + new Date(x.at).toLocaleDateString(undefined, {month: "short", day: "numeric"}) + ' ' + new Date(x.at).toLocaleTimeString(undefined, {hour: "numeric", minute: "2-digit"}) + '</td><td>' +
+      esc((EX_LENGTHS[x.len] || {}).label || "") + '</td><td><span class="pill ' + (x.pass ? "got" : "miss") + '">' + x.scaled + '</span></td><td>' + fmtDur(x.used) + '</td></tr>').join("") + '</tbody></table>' : "";
+}
+function showExam(){
+  if (!EX_READY) return;
+  if (!ex) ex = exLoad();
+  if (ex && ex.status === "running") {
+    if (Date.now() >= ex.deadline) { exFinish(true); return; }
+    exRender(); exStartTimer(); return;
+  }
+  if (exTimerId) clearInterval(exTimerId);
+  if (ex && ex.status === "done" && ex.result) { $("exSetup").hidden = true; $("exRun").hidden = true; $("exResult").hidden = false; exRenderResult(); return; }
+  exRenderSetup();
+}
+$("exStart").addEventListener("click", exStart);
+$("exPrev").addEventListener("click", () => { if (ex.i > 0) exGo(ex.i - 1); });
+$("exNext").addEventListener("click", exNext);
+$("exToReview").addEventListener("click", () => { ex.view = "review"; exSave(); exRender(); });
+$("exBack").addEventListener("click", () => { ex.view = "q"; exSave(); exRender(); });
+$("exEnd").addEventListener("click", exEndSection);
+$("exQuit").addEventListener("click", exQuit);
+$("exFlag").addEventListener("change", e => { const q = exCur(); if (e.target.checked) ex.flag[q.id] = true; else delete ex.flag[q.id]; exSave(); });
+$("exGrid").addEventListener("click", e => { const b = e.target.closest("button[data-k]"); if (b) exGo(Number(b.dataset.k)); });
+EX_READY = true;
+if (mode === "exam") showExam();
+
 </script>
 
 </body>
