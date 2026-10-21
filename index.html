@@ -12,31 +12,19 @@
 <style>
 [hidden]{display:none !important}
 /* Layout: one index card at a time in a ~640px column; deck filters above, grading controls below */
+/* Dracula theme (draculatheme.com palette), the same in light and dark mode */
 :root{
-  --bg:#EDF0F5; --surface:#FFFFFF; --ink:#16202F; --muted:#586477; --line:#D2D9E3;
-  --accent:#1D5DBF; --accent-soft:#E0E9F8; --accent-ink:#FFFFFF;
-  --good:#1B7649; --good-soft:#E0F1E7; --miss:#AE4229; --miss-soft:#F7E4DE;
-  --code-bg:#EEF2F8; --shadow:0 1px 2px rgba(22,32,47,.06), 0 8px 24px rgba(22,32,47,.07);
+  --bg:#21222C; --surface:#282A36; --ink:#F8F8F2; --muted:#A9B1D6; --line:#44475A;
+  --accent:#BD93F9; --accent-soft:#3A3452; --accent-ink:#21222C;
+  --good:#50FA7B; --good-soft:#1E3A2B; --miss:#FF6E6E; --miss-soft:#45252C;
+  --code-bg:#191A21; --code-ink:#FF79C6; --link:#8BE9FD; --warn:#F1FA8C;
+  --shadow:0 1px 2px rgba(0,0,0,.35), 0 10px 28px rgba(0,0,0,.3);
   --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
   --body:"Source Sans 3", "Segoe UI", system-ui, sans-serif;
   --mono:"JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#0E131B; --surface:#171F2B; --ink:#E5EAF2; --muted:#98A4B5; --line:#2A3443;
-    --accent:#76A2EE; --accent-soft:#1B2A44; --accent-ink:#0E131B;
-    --good:#5DBB8A; --good-soft:#163024; --miss:#E5836C; --miss-soft:#3A1F19;
-    --code-bg:#202A38; --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
-    color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#0E131B; --surface:#171F2B; --ink:#E5EAF2; --muted:#98A4B5; --line:#2A3443;
-  --accent:#76A2EE; --accent-soft:#1B2A44; --accent-ink:#0E131B;
-  --good:#5DBB8A; --good-soft:#163024; --miss:#E5836C; --miss-soft:#3A1F19;
-  --code-bg:#202A38; --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
   color-scheme:dark;
 }
+::selection{background:#44475A; color:#F8F8F2}
 *{box-sizing:border-box}
 body{background:var(--bg); color:var(--ink); font-family:var(--body); font-size:16px; line-height:1.5}
 .wrap{max-width:640px; margin:0 auto; padding-inline:16px; padding-block:28px 48px; display:flex; flex-direction:column; gap:20px}
@@ -68,14 +56,14 @@ h1{font-family:var(--display); font-weight:700; font-size:1.9rem; line-height:1.
 .a{font-size:1.06rem; line-height:1.55; flex:1; min-width:0}
 .a p{margin:0 0 .6em}
 .a ol{margin:0; padding-left:1.3em; display:flex; flex-direction:column; gap:4px}
-code{font-family:var(--mono); font-size:.86em; background:var(--code-bg); padding:.1em .35em; border-radius:5px; overflow-wrap:anywhere}
+code{font-family:var(--mono); font-size:.86em; background:var(--code-bg); color:var(--code-ink); padding:.1em .35em; border-radius:5px; overflow-wrap:anywhere}
 pre{margin:.2em 0 0; background:var(--code-bg); border-radius:8px; padding:10px 12px; overflow-x:auto; font-size:.82rem; line-height:1.5}
-pre code{background:none; padding:0; font-size:inherit; overflow-wrap:normal; white-space:pre}
+pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overflow-wrap:normal; white-space:pre}
 .foot{display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; font-size:.85rem; color:var(--muted)}
 .pill{font-family:var(--mono); font-size:.7rem; letter-spacing:.04em; text-transform:uppercase; padding:3px 8px; border-radius:999px}
 .pill.got{background:var(--good-soft); color:var(--good)}
 .pill.miss{background:var(--miss-soft); color:var(--miss)}
-.link{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent-soft)}
+.link{color:var(--link); text-decoration:none; border-bottom:1px solid rgba(139,233,253,.3)}
 .link:hover{border-bottom-color:var(--accent)}
 
 .controls{display:grid; grid-template-columns:auto 1fr 1fr auto; gap:8px}
