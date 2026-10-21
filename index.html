@@ -113,6 +113,27 @@ pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overfl
 .chip.revchip{border-color:var(--rev-line); color:var(--rev)}
 .chip.revchip[aria-pressed="true"]{background:var(--rev); border-color:var(--rev); color:#21222C; border-style:solid}
 .clears{display:flex; gap:14px}
+.mode .n{font-family:var(--mono); font-size:.75rem; font-weight:500; margin-left:4px; padding:1px 6px; border-radius:999px; background:var(--rev-soft); color:var(--rev)}
+.mode[aria-selected="true"] .n{background:rgba(33,34,44,.25); color:inherit}
+.mode .n:empty{display:none}
+/* Review tab: everything still to review, flashcards and practice questions */
+.rsec{display:flex; flex-direction:column; gap:10px}
+.rhead{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:10px}
+.rhead h2{font-family:var(--display); font-size:1.2rem; margin:0}
+.rhead h2 .rcount{font-family:var(--mono); font-size:.85rem; color:var(--rev); margin-left:6px}
+.rhead .btn{min-height:40px; padding:8px 14px}
+.rlist{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px}
+.ritem{display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:stretch; border:1px solid var(--line); border-left:3px solid var(--rev); border-radius:12px; background:var(--surface)}
+.ropen{font:inherit; text-align:left; background:none; border:0; color:var(--ink); padding:10px 12px; cursor:pointer; display:flex; flex-direction:column; gap:3px; min-width:0; border-radius:12px 0 0 12px}
+.ropen:hover .rq{color:var(--accent)}
+.ropen:focus-visible, .rdel:focus-visible{outline:2px solid var(--accent); outline-offset:-2px}
+.rmeta{font-family:var(--mono); font-size:.7rem; letter-spacing:.05em; text-transform:uppercase; color:var(--muted)}
+.rmeta .why{color:var(--rev)}
+.rq{font-size:.97rem; line-height:1.4; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden}
+.rdel{font:inherit; font-size:.85rem; background:none; border:0; border-left:1px solid var(--line); color:var(--muted); padding:0 14px; cursor:pointer; border-radius:0 12px 12px 0}
+.rdel:hover{color:var(--miss)}
+.rnone{margin:0; color:var(--muted); font-size:.95rem}
+@media (max-width:420px){ .mode{padding:8px 10px; font-size:.9rem} }
 .textbtn{font:inherit; font-size:.88rem; background:none; border:0; color:var(--muted); text-decoration:underline; text-underline-offset:3px; cursor:pointer; padding:4px 0}
 .textbtn.armed{color:var(--miss)}
 .empty{background:var(--surface); border:1px dashed var(--line); border-radius:16px; padding:28px 20px; text-align:center; color:var(--muted); min-height:180px; display:flex; flex-direction:column; justify-content:center; gap:6px}
@@ -179,7 +200,7 @@ details.others li{font-size:.95rem}
 .btn.check{color:var(--accent-ink); background:var(--accent); border-color:var(--accent)}
 
 /* Mode switch: flashcards or exam-style practice */
-.modes{display:inline-grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; background:var(--surface); border:1px solid var(--line); border-radius:12px; align-self:flex-start; max-width:100%}
+.modes{display:inline-grid; grid-template-columns:repeat(3, auto); gap:4px; padding:4px; background:var(--surface); border:1px solid var(--line); border-radius:12px; align-self:flex-start; max-width:100%}
 .mode{font:inherit; font-weight:600; font-size:.95rem; border:0; border-radius:9px; padding:8px 14px; background:none; color:var(--muted); cursor:pointer; min-height:40px}
 .mode[aria-selected="true"]{background:var(--accent); color:var(--accent-ink)}
 .mode:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
@@ -293,6 +314,7 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
   <div class="modes" role="tablist" aria-label="Study mode">
     <button class="mode" role="tab" id="mode-flash" aria-selected="true" aria-controls="flashView" type="button">Flashcards</button>
     <button class="mode" role="tab" id="mode-practice" aria-selected="false" aria-controls="practiceView" type="button">Practice questions</button>
+    <button class="mode" role="tab" id="mode-review" aria-selected="false" aria-controls="reviewView" type="button">Review<span class="n" id="revTabN"></span></button>
   </div>
 
   <div class="view" id="flashView" role="tabpanel" aria-labelledby="mode-flash">
@@ -383,6 +405,20 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
   </div>
   </div>
 
+  <div class="view" id="reviewView" role="tabpanel" aria-labelledby="mode-review" hidden>
+    <p class="lede">Everything you got wrong lands here automatically, along with anything you flagged with Add to review. Open an item to study it, or study a whole list at once. Remove an item once you know it.</p>
+    <section class="rsec" aria-labelledby="rcTitle">
+      <div class="rhead"><h2 id="rcTitle">Flashcards<span class="rcount" id="rcCount"></span></h2><button class="btn rev" id="rcStudy" type="button">Study these flashcards</button></div>
+      <ul class="rlist" id="rcList"></ul>
+      <p class="rnone" id="rcNone">No flashcards to review yet. Wrong answers and cards you flag show up here.</p>
+    </section>
+    <section class="rsec" aria-labelledby="rpTitle">
+      <div class="rhead"><h2 id="rpTitle">Practice questions<span class="rcount" id="rpCount"></span></h2><button class="btn rev" id="rpStudy" type="button">Practice these questions</button></div>
+      <ul class="rlist" id="rpList"></ul>
+      <p class="rnone" id="rpNone">No practice questions to review yet. Questions you get wrong and ones you flag show up here.</p>
+    </section>
+  </div>
+
   <div class="view" id="practiceView" role="tabpanel" aria-labelledby="mode-practice" hidden>
     <details class="howto"><summary>About these questions</summary>
       <p class="lede">Original questions written in the exam's item formats: multiple choice, multiple response, build list, code completion, Yes/No statements and case studies. In a case study, open the background and use its requirements to answer each question. Each one is checked against the Microsoft page it cites. They are not real exam questions.</p>
@@ -393,6 +429,7 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
         <div class="row" id="pDomains" role="group" aria-label="Exam domain"></div>
       </div>
       <div class="row">
+        <button class="chip toggle revchip" id="pReviewOnly" type="button" aria-pressed="false">Review only <span class="n"></span></button>
         <button class="chip toggle" id="pMissedOnly" type="button" aria-pressed="false">Wrong only</button>
         <button class="chip toggle" id="pShuffle" type="button" aria-pressed="false">Shuffle</button>
         <button class="chip toggle" id="pUnshuffle" type="button" hidden>In order</button>
@@ -412,7 +449,7 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
     </article>
     <div class="empty" id="pEmpty" hidden>
       <strong>No questions match</strong>
-      <span>Turn off Wrong only, or pick another domain.</span>
+      <span>Turn off Review only or Wrong only, or pick another domain.</span>
     </div>
 
     <div class="controls pcontrols">
@@ -420,6 +457,7 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
       <button class="btn check" id="pCheck" type="button">Check answer</button>
       <button class="btn nav" id="pNext" type="button" aria-label="Next question">&rsaquo;</button>
     </div>
+    <button class="btn rev" id="pRevBtn" type="button" aria-pressed="false">+ Add to review</button>
 
     <section class="score" aria-labelledby="pScoreTitle">
       <div class="scorehead">
@@ -1084,11 +1122,11 @@ function save(){ try { localStorage.setItem(KEY, JSON.stringify(marks)); } catch
 const RKEY = "ai103-review-v1";
 let review = {};
 try { review = JSON.parse(localStorage.getItem(RKEY)) || {}; } catch (e) { review = {}; }
-function saveReview(){ try { localStorage.setItem(RKEY, JSON.stringify(review)); } catch (e) {} }
-function addReview(id){ if (!review[id]) { review[id] = 1; saveReview(); } }
+function saveReview(){ try { localStorage.setItem(RKEY, JSON.stringify(review)); } catch (e) {} if (typeof reviewTabCount === "function") reviewTabCount(); }
+function addReview(id){ if (!review[id]) { review[id] = {w: "wrong", at: Date.now()}; saveReview(); } }
 function toggleReview(){
   const c = current(); if (!c) return;
-  if (review[c.id]) delete review[c.id]; else review[c.id] = 1;
+  if (review[c.id]) delete review[c.id]; else review[c.id] = {w: "flag", at: Date.now()};
   saveReview(); render();
 }
 
@@ -1269,7 +1307,7 @@ function saveSession(){
     }
     if (typeof ps !== "undefined" && (mode === "practice" || !s.p)) {
       const q = pCur();
-      s.p = {dom: ps.dom, missedOnly: ps.missedOnly, shuffle: ps.shuffle, order: ps.shuffle ? ps.order : null, id: q ? q.id : null};
+      s.p = {dom: ps.dom, missedOnly: ps.missedOnly, reviewOnly: ps.reviewOnly, shuffle: ps.shuffle, order: ps.shuffle ? ps.order : null, id: q ? q.id : null};
     }
     localStorage.setItem(SKEY, JSON.stringify(s));
   } catch (e) {}
@@ -1602,8 +1640,18 @@ const PKEY = "ai103-practice-v1";
 let presults = {};
 try { presults = JSON.parse(localStorage.getItem(PKEY)) || {}; } catch (e) { presults = {}; }
 function psave(){ try { localStorage.setItem(PKEY, JSON.stringify(presults)); } catch (e) {} }
+// Practice review pile: questions you get wrong, plus any you flag
+const PRKEY = "ai103-practice-review-v1";
+let preview = {};
+try { preview = JSON.parse(localStorage.getItem(PRKEY)) || {}; } catch (e) { preview = {}; }
+function psaveReview(){ try { localStorage.setItem(PRKEY, JSON.stringify(preview)); } catch (e) {} reviewTabCount(); }
+function pToggleReview(){
+  const q = pCur(); if (!q) return;
+  if (preview[q.id]) delete preview[q.id]; else preview[q.id] = {w: "flag", at: Date.now()};
+  psaveReview(); pShow();
+}
 const PBY = Object.fromEntries(PRACTICE.map(q => [q.id, q]));
-const ps = {dom:"all", missedOnly:false, shuffle:false, order:[], i:0, checked:false, seq:[]};
+const ps = {dom:"all", missedOnly:false, reviewOnly:false, shuffle:false, order:[], i:0, checked:false, seq:[]};
 const LETTERS = "ABCDEFGH";
 
 // Options, actions and statements are plain text that may carry <code> tags
@@ -1614,7 +1662,7 @@ function pMatch(q, d){
   if (d.startsWith("case:")) return q.case === d.slice(5);
   return q.domain === d;
 }
-function pPool(){ return PRACTICE.filter(q => pMatch(q, ps.dom) && (!ps.missedOnly || presults[q.id] === "wrong")).map(q => q.id); }
+function pPool(){ return PRACTICE.filter(q => pMatch(q, ps.dom) && (!ps.missedOnly || presults[q.id] === "wrong") && (!ps.reviewOnly || preview[q.id])).map(q => q.id); }
 function pRebuild(keepId){
   const p = pPool();
   ps.order = ps.shuffle ? shuffled(p) : p;
@@ -1783,6 +1831,7 @@ function pCheck(){
   const [pts, tot] = pGrade(q, r);
   const ok = pts === tot;
   presults[q.id] = ok ? "right" : "wrong"; psave();
+  if (!ok && !preview[q.id]) { preview[q.id] = {w: "wrong", at: Date.now()}; psaveReview(); }
   ps.checked = true;
   reveal(q, r);
   const verdict = ok ? '<span class="pill got">Correct</span>'
@@ -1815,6 +1864,12 @@ function pShow(){
     b.querySelector(".n").textContent = PRACTICE.filter(q => pMatch(q, d)).length;
   });
   $("pMissedOnly").setAttribute("aria-pressed", String(ps.missedOnly));
+  $("pReviewOnly").setAttribute("aria-pressed", String(ps.reviewOnly));
+  $("pReviewOnly").querySelector(".n").textContent = PRACTICE.filter(q => pMatch(q, ps.dom) && preview[q.id]).length;
+  const pq = pCur(), pin = !!(pq && preview[pq.id]);
+  $("pRevBtn").disabled = !pq;
+  $("pRevBtn").setAttribute("aria-pressed", String(pin));
+  $("pRevBtn").textContent = pin ? "\u2713 In review \u00b7 tap to remove" : "+ Add to review";
   $("pShuffle").setAttribute("aria-pressed", String(ps.shuffle));
   $("pShuffle").textContent = ps.shuffle ? "Reshuffle" : "Shuffle";
   $("pUnshuffle").hidden = !ps.shuffle;
@@ -1825,7 +1880,8 @@ function pShow(){
   ps.checked = false; ps.seq = [];
   $("qResult").hidden = true; $("qResult").innerHTML = "";
   if (q) {
-    $("qMeta").textContent = DOM_LABEL[q.domain] + " · " + TYPE_LABEL[q.type] + (q.type === "multi" ? " · choose " + NUMW[q.answer.length] : "");
+    $("qMeta").innerHTML = (preview[q.id] ? '<span class="revbadge" title="In your review pile">Review</span>' : "") +
+      esc(DOM_LABEL[q.domain] + " · " + TYPE_LABEL[q.type] + (q.type === "multi" ? " · choose " + NUMW[q.answer.length] : ""));
     $("qPos").textContent = (ps.i + 1) + " / " + ps.order.length;
     const was = presults[q.id];
     $("qMark").innerHTML = was === "right" ? '<span class="pill got">Right last time</span>' : was === "wrong" ? '<span class="pill miss">Wrong last time</span>' : "";
@@ -1859,6 +1915,8 @@ $("pCheck").addEventListener("click", pCheck);
 $("pPrev").addEventListener("click", () => pMove(-1));
 $("pNext").addEventListener("click", () => pMove(1));
 $("pMissedOnly").addEventListener("click", () => { ps.missedOnly = !ps.missedOnly; pRebuild(); });
+$("pReviewOnly").addEventListener("click", () => { ps.reviewOnly = !ps.reviewOnly; pRebuild(); });
+$("pRevBtn").addEventListener("click", pToggleReview);
 $("pShuffle").addEventListener("click", () => {
   const q = pCur();
   ps.shuffle = true;
@@ -1895,12 +1953,16 @@ function setMode(m){
   mode = m;
   $("mode-flash").setAttribute("aria-selected", String(m === "flash"));
   $("mode-practice").setAttribute("aria-selected", String(m === "practice"));
+  $("mode-review").setAttribute("aria-selected", String(m === "review"));
   $("flashView").hidden = m !== "flash";
   $("practiceView").hidden = m !== "practice";
+  $("reviewView").hidden = m !== "review";
+  if (m === "review") renderReview();
   try { localStorage.setItem("ai103-mode", m); } catch (e) {}
 }
 $("mode-flash").addEventListener("click", () => setMode("flash"));
 $("mode-practice").addEventListener("click", () => setMode("practice"));
+$("mode-review").addEventListener("click", () => setMode("review"));
 (function initMode(){
   // No practice questions yet: hide the switch and stay on flashcards
   if (!PRACTICE.length) { document.querySelector(".modes").hidden = true; setMode("flash"); return; }
@@ -1908,12 +1970,13 @@ $("mode-practice").addEventListener("click", () => setMode("practice"));
   try { m = localStorage.getItem("ai103-mode") || "flash"; } catch (e) {}
   if (location.hash === "#practice") m = "practice";
   if (location.hash === "#flashcards") m = "flash";
-  setMode(m === "practice" ? "practice" : "flash");
+  if (location.hash === "#review") m = "review";
+  setMode(["practice", "review"].includes(m) ? m : "flash");
 })();
 const savedP = loadSession().p;
 if (savedP) {
   if ([...document.querySelectorAll("[data-pdom]")].some(b => b.dataset.pdom === savedP.dom)) ps.dom = savedP.dom;
-  ps.missedOnly = !!savedP.missedOnly; ps.shuffle = !!savedP.shuffle;
+  ps.missedOnly = !!savedP.missedOnly; ps.reviewOnly = !!savedP.reviewOnly; ps.shuffle = !!savedP.shuffle;
 }
 pRebuild(savedP && savedP.id);
 if (savedP && savedP.shuffle) {
@@ -1923,6 +1986,60 @@ if (savedP && savedP.shuffle) {
 }
 sessionReady = true;
 saveSession();
+
+// ===== Review tab =====
+function plainText(h){ const d = document.createElement("div"); d.innerHTML = h || ""; return d.textContent.replace(/\s+/g, " ").trim(); }
+function whyLabel(v){ return v && v.w === "wrong" ? "Wrong answer" : v && v.w === "flag" ? "Flagged" : "Added"; }
+function reviewTabCount(){
+  const n = Object.keys(review).filter(id => BY_ID[id]).length + Object.keys(preview).filter(id => PBY[id]).length;
+  $("revTabN").textContent = n ? String(n) : "";
+}
+function byNewest(store){ return (a, b) => ((store[b.id] && store[b.id].at) || 0) - ((store[a.id] && store[a.id].at) || 0); }
+function renderReview(){
+  const cards = CARDS.filter(c => review[c.id]).sort(byNewest(review));
+  const qs = PRACTICE.filter(q => preview[q.id]).sort(byNewest(preview));
+  $("rcCount").textContent = cards.length; $("rpCount").textContent = qs.length;
+  $("rcNone").hidden = cards.length > 0; $("rpNone").hidden = qs.length > 0;
+  $("rcStudy").hidden = !cards.length; $("rpStudy").hidden = !qs.length;
+  const item = (kind, id, meta, text) => '<li class="ritem"><button class="ropen" type="button" data-k="' + kind + '" data-id="' + esc(id) + '">' +
+    '<span class="rmeta">' + meta + '</span><span class="rq">' + esc(text) + '</span></button>' +
+    '<button class="rdel" type="button" data-k="' + kind + '" data-id="' + esc(id) + '" aria-label="Remove from review">Remove</button></li>';
+  $("rcList").innerHTML = cards.map(c => {
+    const area = c.deck === "cv" && c.cvs ? "Computer vision · " + CV_SUBS[c.cvs] : DECKS[c.deck];
+    const kind = c.kind === "fill" ? "Fill in" : c.kind === "code" ? "Code" : "Concept";
+    return item("c", c.id, esc(area + " · " + kind) + ' · <span class="why">' + whyLabel(review[c.id]) + '</span>', plainText(c.q));
+  }).join("");
+  $("rpList").innerHTML = qs.map(q => item("p", q.id,
+    esc(DOM_LABEL[q.domain] + " · " + TYPE_LABEL[q.type] + (q.case && CASES[q.case] ? " · " + CASES[q.case].title : "")) + ' · <span class="why">' + whyLabel(preview[q.id]) + '</span>',
+    plainText(q.stem))).join("");
+  reviewTabCount();
+}
+function scrollToEl(el){ const r = el.getBoundingClientRect(); window.scrollTo({top: Math.max(0, window.scrollY + r.top - 12)}); }
+function studyCards(id){
+  setMode("flash");
+  Object.assign(state, {deck: "all", kind: "all", sgOnly: false, learnOnly: false, missedOnly: false, reviewOnly: true, shuffle: false});
+  rebuild(id);
+  scrollToEl($("card").hidden ? $("empty") : $("card"));
+}
+function studyQuestions(id){
+  setMode("practice");
+  Object.assign(ps, {dom: "all", missedOnly: false, reviewOnly: true, shuffle: false});
+  pRebuild(id);
+  scrollToEl($("qcard"));
+}
+$("rcStudy").addEventListener("click", () => studyCards());
+$("rpStudy").addEventListener("click", () => studyQuestions());
+$("reviewView").addEventListener("click", e => {
+  const del = e.target.closest(".rdel"), open = e.target.closest(".ropen");
+  if (del) {
+    if (del.dataset.k === "c") { delete review[del.dataset.id]; saveReview(); } else { delete preview[del.dataset.id]; psaveReview(); }
+    renderReview(); render(); pShow();
+  } else if (open) {
+    if (open.dataset.k === "c") studyCards(open.dataset.id); else studyQuestions(open.dataset.id);
+  }
+});
+reviewTabCount();
+if (mode === "review") renderReview();
 </script>
 
 </body>
