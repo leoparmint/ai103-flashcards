@@ -134,6 +134,32 @@ pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overfl
 .rdel{font:inherit; font-size:.85rem; background:none; border:0; border-left:1px solid var(--line); color:var(--muted); padding:0 14px; cursor:pointer; border-radius:0 12px 12px 0}
 .rdel:hover{color:var(--miss)}
 .rnone{margin:0; color:var(--muted); font-size:.95rem}
+/* Review sheet: every item written out in full, to read by scrolling */
+.rsheet{display:flex; flex-direction:column; gap:12px}
+.rcard{background:var(--surface); border:1px solid var(--line); border-left:3px solid var(--rev); border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; gap:10px; min-width:0}
+.rtop{display:flex; flex-wrap:wrap; justify-content:space-between; align-items:baseline; gap:6px 12px}
+.ractions{display:flex; gap:14px}
+.rcard .rqtext{font-family:var(--display); font-weight:600; font-size:1.08rem; line-height:1.35; margin:0}
+.rcard .rstem{font-size:1rem; line-height:1.5; min-width:0}
+.rcard .rstem p{margin:0 0 .5em} .rcard .rstem p:last-child{margin-bottom:0}
+.rcard pre{margin:0}
+.ropts{margin:0; padding-left:1.6em; display:flex; flex-direction:column; gap:4px}
+.ropts li{padding:2px 0; color:var(--muted)}
+.ropts li.ok{color:var(--good); font-weight:600}
+.ropts li.ok::after{content:" \2713"}
+.rans{display:flex; flex-direction:column; gap:8px; padding-top:8px; border-top:1px dashed var(--line); min-width:0}
+.rans .rlabel{font-family:var(--mono); font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; color:var(--good)}
+.rans .ratext p{margin:0 0 .5em} .rans .ratext p:last-child{margin-bottom:0}
+.rwhy summary{cursor:pointer; color:var(--accent); font-size:.92rem}
+.rwhy ul{margin:8px 0 0; padding-left:1.2em; display:flex; flex-direction:column; gap:6px; font-size:.93rem}
+.rsrc{margin:0; font-size:.85rem; color:var(--muted)}
+.rcard .case{background:var(--bg)}
+.rsheet.hideans .rans{display:none}
+.rsheet.hideans .rcard.show .rans{display:flex}
+.rshow{display:none}
+.rsheet.hideans .rshow{display:inline}
+.rsheet.hideans .rcard.show .rshow{display:none}
+.revtools{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
 @media (max-width:420px){ .mode{padding:8px 10px; font-size:.9rem} }
 .textbtn{font:inherit; font-size:.88rem; background:none; border:0; color:var(--muted); text-decoration:underline; text-underline-offset:3px; cursor:pointer; padding:4px 0}
 .textbtn.armed{color:var(--miss)}
@@ -407,15 +433,16 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
   </div>
 
   <div class="view" id="reviewView" role="tabpanel" aria-labelledby="mode-review" hidden>
-    <p class="lede">Everything you got wrong lands here automatically, along with anything you flagged with Add to review. Open an item to study it, or study a whole list at once. Remove an item once you know it.</p>
+    <p class="lede">Everything you got wrong lands here automatically, along with anything you flagged with Add to review, written out in full so you can study it by scrolling. Remove an item once you know it, or use the buttons to drill a list as cards.</p>
+    <div class="revtools"><button class="chip toggle" id="hideAns" type="button" aria-pressed="false">Hide answers (quiz yourself)</button></div>
     <section class="rsec" aria-labelledby="rcTitle">
       <div class="rhead"><h2 id="rcTitle">Flashcards<span class="rcount" id="rcCount"></span></h2><button class="btn rev" id="rcStudy" type="button">Study these flashcards</button></div>
-      <ul class="rlist" id="rcList"></ul>
+      <div class="rsheet" id="rcList"></div>
       <p class="rnone" id="rcNone">No flashcards to review yet. Wrong answers and cards you flag show up here.</p>
     </section>
     <section class="rsec" aria-labelledby="rpTitle">
       <div class="rhead"><h2 id="rpTitle">Practice questions<span class="rcount" id="rpCount"></span></h2><button class="btn rev" id="rpStudy" type="button">Practice these questions</button></div>
-      <ul class="rlist" id="rpList"></ul>
+      <div class="rsheet" id="rpList"></div>
       <p class="rnone" id="rpNone">No practice questions to review yet. Questions you get wrong and ones you flag show up here.</p>
     </section>
   </div>
@@ -1130,6 +1157,9 @@ function save(){ try { localStorage.setItem(KEY, JSON.stringify(marks)); } catch
 const RKEY = "ai103-review-v1";
 let review = {};
 try { review = JSON.parse(localStorage.getItem(RKEY)) || {}; } catch (e) { review = {}; }
+// Review tab: show or hide answers (declared early because the tab can open on load)
+let hideAns = false;
+try { hideAns = localStorage.getItem("ai103-review-hide") === "1"; } catch (e) {}
 function saveReview(){ try { localStorage.setItem(RKEY, JSON.stringify(review)); } catch (e) {} if (typeof reviewTabCount === "function") reviewTabCount(); }
 function addReview(id){ if (!review[id]) { review[id] = {w: "wrong", at: Date.now()}; saveReview(); } }
 function toggleReview(){
@@ -2009,25 +2039,58 @@ function reviewTabCount(){
   $("revTabN").textContent = n ? String(n) : "";
 }
 function byNewest(store){ return (a, b) => ((store[b.id] && store[b.id].at) || 0) - ((store[a.id] && store[a.id].at) || 0); }
+function rTop(kind, id, meta){
+  return '<div class="rtop"><span class="rmeta">' + meta + '</span><span class="ractions">' +
+    '<button class="textbtn rshow" type="button">Show answer</button>' +
+    '<button class="textbtn ropen" type="button" data-k="' + kind + '" data-id="' + esc(id) + '">Study as ' + (kind === "c" ? "card" : "question") + '</button>' +
+    '<button class="textbtn rdel" type="button" data-k="' + kind + '" data-id="' + esc(id) + '" aria-label="Remove from review">Remove</button></span></div>';
+}
+function cardSheet(c){
+  const area = c.deck === "cv" && c.cvs ? "Computer vision · " + CV_SUBS[c.cvs] : DECKS[c.deck];
+  const kind = c.kind === "fill" ? "Fill in" : c.kind === "code" ? "Code" : "Concept";
+  const meta = '<span class="cnum">#' + c.num + '</span>' + esc(area + " · " + kind) + ' · <span class="why">' + whyLabel(review[c.id]) + '</span>';
+  const opts = c.choices && c.choices.length ? [c.ans].concat(c.choices).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())) : [];
+  const fmt = o => c.textOpts ? md(o) : '<code>' + esc(o) + '</code>';
+  const q = c.kind === "fill" ? c.front : '<p class="rqtext">' + c.q + '</p>';
+  const optList = opts.length ? '<ol class="ropts" type="A">' + opts.map(o => '<li' + (o === c.ans ? ' class="ok"' : "") + '>' + fmt(o) + '</li>').join("") + '</ol>' : "";
+  const why = c.why && Object.keys(c.why).length ? '<details class="rwhy"><summary>Why not the other options</summary><ul>' +
+    Object.keys(c.why).map(k => '<li>' + fmt(k) + areaOf(c, k) + '<br>' + md(c.why[k].text) + '</li>').join("") + '</ul></details>' : "";
+  const ans = c.kind === "fill" ? c.back : '<div class="ratext">' + c.a + '</div>';
+  return '<article class="rcard">' + rTop("c", c.id, meta) + q + optList +
+    '<div class="rans"><span class="rlabel">Answer</span>' + ans + why +
+    '<p class="rsrc">' + esc(modLine(c)) + ' · <a class="link" href="' + esc(c.src.u) + '" target="_blank" rel="noopener">' + esc(c.src.t) + '</a></p></div></article>';
+}
+function questionSheet(q){
+  const meta = '<span class="cnum">Q' + q.num + '</span>' + esc(DOM_LABEL[q.domain] + " · " + TYPE_LABEL[q.type] + (q.case && CASES[q.case] ? " · " + CASES[q.case].title : "")) +
+    ' · <span class="why">' + whyLabel(preview[q.id]) + '</span>';
+  const c = q.case && CASES[q.case];
+  const caseBox = c ? '<details class="case"><summary>Case study: ' + esc(c.title) + '</summary><div class="casebody">' + c.html + '</div></details>' : "";
+  let body = "";
+  if (q.type === "single" || q.type === "multi") body = '<ol class="ropts" type="A">' + q.options.map((o, i) => '<li' + (q.answer.includes(i) ? ' class="ok"' : "") + '>' + inl(o) + '</li>').join("") + '</ol>';
+  else if (q.type === "order") body = '<ol class="ropts" type="A">' + q.actions.map(a => '<li>' + inl(a) + '</li>').join("") + '</ol>';
+  else if (q.type === "yesno") body = '<ol class="ropts">' + q.statements.map(st => '<li>' + inl(st.text) + '</li>').join("") + '</ol>';
+  const key = q.type === "yesno" ? '<ol class="ropts">' + q.statements.map(st => '<li class="' + (st.answer ? "ok" : "") + '">' + (st.answer ? "Yes" : "No") + '</li>').join("") + '</ol>' : keyHTML(q);
+  return '<article class="rcard">' + rTop("p", q.id, meta) + caseBox + '<div class="rstem">' + q.stem + '</div>' + body +
+    '<div class="rans"><span class="rlabel">Answer</span>' + key + '<div class="explain">' + q.explain + '</div>' +
+    '<p class="rsrc">' + esc(modLine(q)) + ' · <a class="link" href="' + esc(q.src.u) + '" target="_blank" rel="noopener">' + esc(q.src.t) + '</a></p></div></article>';
+}
 function renderReview(){
   const cards = CARDS.filter(c => review[c.id]).sort(byNewest(review));
   const qs = PRACTICE.filter(q => preview[q.id]).sort(byNewest(preview));
   $("rcCount").textContent = cards.length; $("rpCount").textContent = qs.length;
   $("rcNone").hidden = cards.length > 0; $("rpNone").hidden = qs.length > 0;
   $("rcStudy").hidden = !cards.length; $("rpStudy").hidden = !qs.length;
-  const item = (kind, id, meta, text) => '<li class="ritem"><button class="ropen" type="button" data-k="' + kind + '" data-id="' + esc(id) + '">' +
-    '<span class="rmeta">' + meta + '</span><span class="rq">' + esc(text) + '</span></button>' +
-    '<button class="rdel" type="button" data-k="' + kind + '" data-id="' + esc(id) + '" aria-label="Remove from review">Remove</button></li>';
-  $("rcList").innerHTML = cards.map(c => {
-    const area = c.deck === "cv" && c.cvs ? "Computer vision · " + CV_SUBS[c.cvs] : DECKS[c.deck];
-    const kind = c.kind === "fill" ? "Fill in" : c.kind === "code" ? "Code" : "Concept";
-    return item("c", c.id, '<span class="cnum">#' + c.num + '</span>' + esc(area + " · " + kind) + ' · <span class="why">' + whyLabel(review[c.id]) + '</span>', plainText(c.q));
-  }).join("");
-  $("rpList").innerHTML = qs.map(q => item("p", q.id,
-    '<span class="cnum">Q' + q.num + '</span>' + esc(DOM_LABEL[q.domain] + " · " + TYPE_LABEL[q.type] + (q.case && CASES[q.case] ? " · " + CASES[q.case].title : "")) + ' · <span class="why">' + whyLabel(preview[q.id]) + '</span>',
-    plainText(q.stem))).join("");
+  $("rcList").innerHTML = cards.map(cardSheet).join("");
+  $("rpList").innerHTML = qs.map(questionSheet).join("");
+  ["rcList", "rpList"].forEach(id => $(id).classList.toggle("hideans", hideAns));
+  $("hideAns").setAttribute("aria-pressed", String(hideAns));
   reviewTabCount();
 }
+$("hideAns").addEventListener("click", () => {
+  hideAns = !hideAns;
+  try { localStorage.setItem("ai103-review-hide", hideAns ? "1" : "0"); } catch (e) {}
+  renderReview();
+});
 function scrollToEl(el){ const r = el.getBoundingClientRect(); window.scrollTo({top: Math.max(0, window.scrollY + r.top - 12)}); }
 function studyCards(id){
   setMode("flash");
@@ -2044,7 +2107,8 @@ function studyQuestions(id){
 $("rcStudy").addEventListener("click", () => studyCards());
 $("rpStudy").addEventListener("click", () => studyQuestions());
 $("reviewView").addEventListener("click", e => {
-  const del = e.target.closest(".rdel"), open = e.target.closest(".ropen");
+  const del = e.target.closest(".rdel"), open = e.target.closest(".ropen"), show = e.target.closest(".rshow");
+  if (show) { show.closest(".rcard").classList.add("show"); return; }
   if (del) {
     if (del.dataset.k === "c") { delete review[del.dataset.id]; saveReview(); } else { delete preview[del.dataset.id]; psaveReview(); }
     renderReview(); render(); pShow();
