@@ -126,6 +126,13 @@ pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overfl
 .btn.rev[aria-pressed="true"]{background:var(--rev-soft); border-color:var(--rev)}
 .revbadge{display:inline-flex; align-items:center; margin-right:8px; padding:2px 8px; border-radius:999px; background:var(--rev-soft); color:var(--rev); border:1px solid var(--rev-line); font-weight:500; letter-spacing:.05em}
 .chip.revchip{border-color:var(--rev-line); color:var(--rev)}
+.chip.exclchip{border-style:dashed}
+.chip.exclchip::before{content:"\2715"; font-size:.72rem; opacity:.55}
+.chip.exclchip[aria-pressed="true"]{background:transparent; border-style:solid; border-color:var(--miss); color:var(--miss); text-decoration:line-through}
+.chip.exclchip[aria-pressed="true"]::before{opacity:1; text-decoration:none}
+.chip:disabled{opacity:.4; cursor:default}
+.group.off .glabel{text-decoration:line-through}
+.exclnote{font-family:var(--body); text-transform:none; letter-spacing:0; font-size:.8rem}
 .chip.revchip[aria-pressed="true"]{background:var(--rev); border-color:var(--rev); color:#21222C; border-style:solid}
 .clears{display:flex; gap:14px}
 .cnum{font-family:var(--mono); font-weight:600; color:var(--accent); margin-right:8px; letter-spacing:.02em}
@@ -422,6 +429,10 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
       <div class="row"><button class="chip" data-deck="all" id="deck-all" type="button">All areas <span class="n"></span></button></div>
     </div>
     <div class="group">
+      <span class="glabel">Exclude topic areas <span class="exclnote">· also skips them in Practice and the Mock exam</span></span>
+      <div class="row" data-excl-row role="group" aria-label="Exclude topic areas"></div>
+    </div>
+    <div class="group">
       <span class="glabel">Card type</span>
       <div class="row" role="group" aria-label="Card type">
         <button class="chip" data-kind="all" id="kind-all" type="button">All types <span class="n"></span></button>
@@ -531,6 +542,10 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
         <span class="glabel">Exam domain</span>
         <div class="row" id="pDomains" role="group" aria-label="Exam domain"></div>
       </div>
+      <div class="group">
+        <span class="glabel">Exclude topic areas <span class="exclnote">· also skips them in Flashcards and the Mock exam</span></span>
+        <div class="row" data-excl-row role="group" aria-label="Exclude topic areas"></div>
+      </div>
       <div class="row">
         <button class="chip toggle revchip" id="pReviewOnly" type="button" aria-pressed="false">Review only <span class="n"></span></button>
         <button class="chip toggle" id="pMissedOnly" type="button" aria-pressed="false">Wrong only</button>
@@ -587,7 +602,7 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
         <label class="exopt"><input type="radio" name="exlen" value="quick"><span><b>Quick check</b><span data-exdesc="quick">12 questions in 25 minutes, no case study</span></span></label>
       </div>
       <fieldset class="exareas" id="exAreas">
-        <legend>Topic areas <span>Uncheck any you want to exclude</span></legend>
+        <legend>Topic areas <span>Uncheck any you want to exclude. This also skips them in Flashcards and Practice.</span></legend>
         <div class="exareagrid" id="exAreaList"></div>
         <p class="exareanote" id="exAreaNote" hidden></p>
       </fieldset>
@@ -729,12 +744,25 @@ function inLearn(c){
 }
 // Exam domains and their weights, from the AI-103 study guide
 const GROUPS = [
-  {label:"Generative AI and agents", w:"30–35%", decks:["gen","params","basics","tools","mcp","iq","ag"]},
-  {label:"Plan and manage", w:"25–30%", decks:["ops"]},
-  {label:"Computer vision", w:"10–15%", decks:["cv","cv:gen","cv:und","cv:rai"]},
-  {label:"Information extraction", w:"10–15%", decks:["ie"]},
-  {label:"Text analysis", w:"10–15%", decks:["lang"]}
+  {id:"gen", label:"Generative AI and agents", short:"Gen AI & agents", w:"30–35%", decks:["gen","params","basics","tools","mcp","iq","ag"]},
+  {id:"ops", label:"Plan and manage", short:"Plan & manage", w:"25–30%", decks:["ops"]},
+  {id:"cv", label:"Computer vision", short:"Computer vision", w:"10–15%", decks:["cv","cv:gen","cv:und","cv:rai"]},
+  {id:"ie", label:"Information extraction", short:"Info extraction", w:"10–15%", decks:["ie"]},
+  {id:"lang", label:"Text analysis", short:"Text analysis", w:"10–15%", decks:["lang"]}
 ];
+// Topic areas you've excluded: skipped in Flashcards, Practice and the Mock exam (saved in this browser)
+const XKEY = "ai103-exclude-v1";
+let EXCL = new Set();
+try {
+  const raw = localStorage.getItem(XKEY) !== null ? localStorage.getItem(XKEY) : localStorage.getItem("ai103-mock-exclude-v1");
+  const a = JSON.parse(raw || "[]");
+  if (Array.isArray(a)) EXCL = new Set(a.filter(d => GROUPS.some(g => g.id === d)));
+} catch (e) { EXCL = new Set(); }
+const DECK_DOM = {};
+GROUPS.forEach(g => g.decks.forEach(d => { DECK_DOM[d] = g.id; }));
+// A card cross-listed in another area (c.also) is skipped when either of its areas is excluded
+function cardKept(c){ return !EXCL.has(DECK_DOM[c.deck]) && !(c.also || []).some(d => EXCL.has(DECK_DOM[d])); }
+function deckOff(d){ return d !== "all" && EXCL.has(DECK_DOM[d]); }
 // Cards that ask for an exact identifier; everything else is a concept or scenario card
 const CODE = new Set(["a8","a10","t6","t7","m3","m4","m5","m7","m8","m9","m10","i5","i15","p5","p12"]);
 
@@ -1289,7 +1317,7 @@ const BY_ID = Object.fromEntries(CARDS.map(c => [c.id, c]));
   const box = document.getElementById("decks");
   GROUPS.forEach(g => {
     const grp = document.createElement("div");
-    grp.className = "group";
+    grp.className = "group"; grp.dataset.dom = g.id;
     grp.innerHTML = '<span class="glabel">' + esc(g.label) + ' · <b>' + esc(g.w) + '</b></span>';
     const row = document.createElement("div");
     row.className = "row";
@@ -1334,7 +1362,7 @@ function matchDeck(c, d){
   }
   return c.deck === d;
 }
-function inDeck(c){ return matchDeck(c, state.deck); }
+function inDeck(c){ return matchDeck(c, state.deck) && cardKept(c); }
 function inKind(c){ return state.kind === "all" || c.kind === state.kind; }
 function inToggles(c){ return (!state.sgOnly || c.sg) && (!state.learnOnly || c.learn); }
 function pool(){
@@ -1346,6 +1374,7 @@ function shuffled(a){
   return b;
 }
 function rebuild(keepId){
+  if (deckOff(state.deck)) state.deck = "all";
   const p = pool();
   state.order = state.shuffle ? shuffled(p) : p;
   const k = keepId ? state.order.indexOf(keepId) : -1;
@@ -1392,8 +1421,11 @@ function render(){
   document.querySelectorAll("[data-deck]").forEach(b => {
     const d = b.dataset.deck;
     b.setAttribute("aria-pressed", String(d === state.deck));
-    b.querySelector(".n").textContent = CARDS.filter(c => matchDeck(c, d)).length;
+    b.disabled = deckOff(d);
+    b.querySelector(".n").textContent = CARDS.filter(c => matchDeck(c, d) && cardKept(c)).length;
   });
+  document.querySelectorAll("#decks .group[data-dom]").forEach(g => g.classList.toggle("off", EXCL.has(g.dataset.dom)));
+  exclChips();
   document.querySelectorAll("[data-kind]").forEach(b => {
     const k = b.dataset.kind;
     b.setAttribute("aria-pressed", String(k === state.kind));
@@ -1402,7 +1434,7 @@ function render(){
   $("sgOnly").setAttribute("aria-pressed", String(state.sgOnly));
   const lab = sel => { const b = document.querySelector(sel); return b ? b.firstChild.textContent.trim() : ""; };
   $("fSummary").textContent = [lab('[data-deck][aria-pressed="true"]'), lab('[data-kind][aria-pressed="true"]'),
-    state.sgOnly ? "Study guide only" : "", state.learnOnly ? "Learn modules only" : "", state.reviewOnly ? "Review only" : "", state.missedOnly ? "Missed only" : "", state.shuffle ? "Shuffled" : ""].filter(Boolean).join(" · ");
+    state.sgOnly ? "Study guide only" : "", state.learnOnly ? "Learn modules only" : "", EXCL.size ? "Excluding " + GROUPS.filter(g => EXCL.has(g.id)).map(g => g.short).join(", ") : "", state.reviewOnly ? "Review only" : "", state.missedOnly ? "Missed only" : "", state.shuffle ? "Shuffled" : ""].filter(Boolean).join(" · ");
   $("sgOnly").querySelector(".n").textContent = CARDS.filter(c => inDeck(c) && inKind(c) && (!state.learnOnly || c.learn) && c.sg).length;
   $("reviewOnly").setAttribute("aria-pressed", String(state.reviewOnly));
   $("reviewOnly").querySelector(".n").textContent = CARDS.filter(c => inDeck(c) && inKind(c) && inToggles(c) && review[c.id]).length;
@@ -1740,6 +1772,29 @@ if (savedF && savedF.shuffle) {
   render();
 }
 
+// Exclude chips (one row in Flashcards, one in Practice); both share EXCL with the Mock exam
+function exclChips(){
+  document.querySelectorAll("[data-excl-row]").forEach(row => {
+    if (!row.children.length) row.innerHTML = GROUPS.map(g => '<button class="chip toggle exclchip" type="button" data-excl="' + g.id + '" aria-pressed="false" title="Skip ' + esc(g.label) + ' in Flashcards, Practice and the Mock exam">' + esc(g.short) + '</button>').join("");
+    row.querySelectorAll("[data-excl]").forEach(b => b.setAttribute("aria-pressed", String(EXCL.has(b.dataset.excl))));
+  });
+}
+function setExcl(a, fromExam){
+  EXCL = new Set(a.filter(d => GROUPS.some(g => g.id === d)));
+  try { localStorage.setItem(XKEY, JSON.stringify([...EXCL])); } catch (e) {}
+  const c = current();
+  rebuild(c && cardKept(c) ? c.id : null);
+  if (typeof pRebuild === "function" && typeof PBY !== "undefined") { const q = pCur(); pRebuild(q && pKept(q) ? q.id : null); }
+  if (!fromExam && typeof EX_READY !== "undefined" && EX_READY && !$("exSetup").hidden) exRenderAreas(true);
+  saveSession();
+}
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-excl]"); if (!b) return;
+  const d = b.dataset.excl, next = new Set(EXCL);
+  if (next.has(d)) next.delete(d); else next.add(d);
+  setExcl([...next]);
+});
+
 // ===== Practice questions =====
 let mode = "flash";   // which view is showing: "flash" or "practice"
 // PRACTICE START
@@ -1917,8 +1972,11 @@ function pMatch(q, d){
   if (d.startsWith("case:")) return q.case === d.slice(5);
   return q.domain === d;
 }
-function pPool(){ return PRACTICE.filter(q => pMatch(q, ps.dom) && (!ps.missedOnly || presults[q.id] === "wrong") && (!ps.reviewOnly || preview[q.id])).map(q => q.id); }
+function pKept(q){ return !EXCL.has(q.domain); }
+function pDomOff(d){ return d !== "all" && !PRACTICE.some(q => pMatch(q, d) && pKept(q)); }
+function pPool(){ return PRACTICE.filter(q => pMatch(q, ps.dom) && pKept(q) && (!ps.missedOnly || presults[q.id] === "wrong") && (!ps.reviewOnly || preview[q.id])).map(q => q.id); }
 function pRebuild(keepId){
+  if (pDomOff(ps.dom)) ps.dom = "all";
   const p = pPool();
   ps.order = ps.shuffle ? shuffled(p) : p;
   const k = keepId ? ps.order.indexOf(keepId) : -1;
@@ -2116,11 +2174,13 @@ function pShow(){
   document.querySelectorAll("[data-pdom]").forEach(b => {
     const d = b.dataset.pdom;
     b.setAttribute("aria-pressed", String(d === ps.dom));
-    b.querySelector(".n").textContent = PRACTICE.filter(q => pMatch(q, d)).length;
+    b.disabled = pDomOff(d);
+    b.querySelector(".n").textContent = PRACTICE.filter(q => pMatch(q, d) && pKept(q)).length;
   });
+  exclChips();
   $("pMissedOnly").setAttribute("aria-pressed", String(ps.missedOnly));
   $("pReviewOnly").setAttribute("aria-pressed", String(ps.reviewOnly));
-  $("pReviewOnly").querySelector(".n").textContent = PRACTICE.filter(q => pMatch(q, ps.dom) && preview[q.id]).length;
+  $("pReviewOnly").querySelector(".n").textContent = PRACTICE.filter(q => pMatch(q, ps.dom) && pKept(q) && preview[q.id]).length;
   const pq = pCur(), pin = !!(pq && preview[pq.id]);
   $("pRevBtn").disabled = !pq;
   $("pRevBtn").setAttribute("aria-pressed", String(pin));
@@ -2348,9 +2408,8 @@ function shuffleArr(a){ a = a.slice(); for (let i = a.length - 1; i > 0; i--) { 
 
 // Draw questions by domain weight, unseen practice questions first if asked; a case study goes last as its own section
 // Topic areas left out of mock exams (remembered in this browser)
-var EXXKEY = "ai103-mock-exclude-v1";
-function exExcl(){ try { const a = JSON.parse(localStorage.getItem(EXXKEY)); return Array.isArray(a) ? a.filter(d => EX_WEIGHTS[d] !== undefined) : []; } catch (e) { return []; } }
-function exSaveExcl(a){ try { localStorage.setItem(EXXKEY, JSON.stringify(a)); } catch (e) {} }
+function exExcl(){ return [...EXCL].filter(d => EX_WEIGHTS[d] !== undefined); }
+function exSaveExcl(a){ setExcl(a, true); }
 // The case studies that keep the most questions once excluded areas are dropped
 function exCaseChoices(excl){
   const n = id => PRACTICE.filter(q => q.case === id && !excl.includes(q.domain)).length;
