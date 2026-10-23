@@ -185,6 +185,13 @@ pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overfl
 .exctl:hover{color:var(--ink); border-color:var(--muted)}
 .exctl:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
 .exctl[aria-expanded="true"]{color:var(--rev); border-color:var(--rev)}
+.expaused{border:1px solid var(--line); border-radius:12px; background:var(--surface); padding:28px 18px; margin:10px 0; display:flex; flex-direction:column; gap:10px; align-items:center; text-align:center}
+.expaused p{margin:0}
+.expaused .t{font-family:var(--display); font-weight:700; font-size:1.5rem}
+.expaused .s{color:var(--muted)}
+.expaused .s b{color:var(--ink); font-family:var(--mono)}
+.extimer.paused{color:var(--rev)}
+.exctl[aria-pressed="true"]{color:var(--accent-ink); background:var(--accent); border-color:var(--accent)}
 .exconfirm{border:1px solid var(--rev); border-radius:12px; background:var(--surface); padding:12px 14px; margin:10px 0 4px; display:flex; flex-direction:column; gap:8px}
 .exconfirm p{margin:0}
 .exconfirm .t{font-family:var(--display); font-weight:600; font-size:1.05rem}
@@ -195,7 +202,8 @@ pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overfl
   #exPos .short{display:inline}
   .exbar{padding:8px 10px; gap:8px}
   .exright{gap:6px}
-  .exctl{padding:3px 9px}
+  .exctl{padding:3px 8px}
+  .extimer .tl{display:none}
 }
 .extimer.warn{color:var(--miss)}
 .exflag{display:inline-flex; gap:6px; align-items:center; font-family:var(--body); text-transform:none; letter-spacing:0; font-size:.88rem; color:var(--rev); cursor:pointer}
@@ -689,11 +697,16 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
 
     <section id="exRun" hidden>
       <div class="exbar"><span id="exPos"></span><span class="exright"><span class="extimer" id="exTimer" aria-live="off"></span>
-        <button class="exctl" id="exRestartBtn" type="button" aria-expanded="false" aria-controls="exConfirm">Restart</button><button class="exctl" id="exExitBtn" type="button" aria-expanded="false" aria-controls="exConfirm">Exit</button></span></div>
+        <button class="exctl" id="exPauseBtn" type="button" aria-pressed="false">Pause</button><button class="exctl" id="exRestartBtn" type="button" aria-expanded="false" aria-controls="exConfirm">Restart</button><button class="exctl" id="exExitBtn" type="button" aria-expanded="false" aria-controls="exConfirm">Exit</button></span></div>
       <div class="exconfirm" id="exConfirm" role="alertdialog" aria-labelledby="exConfirmTitle" aria-describedby="exConfirmText" hidden>
         <p class="t" id="exConfirmTitle"></p>
         <p class="s" id="exConfirmText"></p>
         <div class="exbtns" id="exConfirmBtns"></div>
+      </div>
+      <div class="expaused" id="exPaused" hidden>
+        <p class="t">Paused</p>
+        <p class="s">The clock is stopped at <b id="exPausedLeft"></b> left. Questions stay hidden until you resume.</p>
+        <div><button class="btn check" id="exResume" type="button">Resume the exam</button></div>
       </div>
       <div id="exQuestion">
         <article class="qcard">
@@ -2741,19 +2754,44 @@ function exShowReview(){
 function exRender(){
   $("exSetup").hidden = true; $("exResult").hidden = true; $("exRun").hidden = false;
   exConfirmClose();
-  const onReview = ex.view === "review";
-  $("exQuestion").hidden = onReview; $("exReviewScreen").hidden = !onReview;
-  if (onReview) exShowReview(); else exShowQuestion();
+  const paused = !!ex.pausedAt, onReview = ex.view === "review";
+  $("exPaused").hidden = !paused;
+  $("exQuestion").hidden = paused || onReview; $("exReviewScreen").hidden = paused || !onReview;
+  $("exPauseBtn").setAttribute("aria-pressed", String(paused));
+  $("exPauseBtn").textContent = paused ? "Resume" : "Pause";
+  if (!paused) { if (onReview) exShowReview(); else exShowQuestion(); }
+  else $("exPos").innerHTML = '<span class="long">Paused</span><span class="short">Paused</span>';
   exTick();
 }
+function fmtLeft(ms){ const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+  return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(sec).padStart(2, "0"); }
 function exTick(){
   if (!ex || ex.status !== "running") return;
-  const left = ex.deadline - Date.now();
-  if (left <= 0) { exFinish(true); return; }
-  const s = Math.floor(left / 1000), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+  const paused = !!ex.pausedAt;
+  const left = paused ? ex.pausedLeft : ex.deadline - Date.now();
+  if (!paused && left <= 0) { exFinish(true); return; }
   const t = $("exTimer");
-  t.textContent = (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(sec).padStart(2, "0") + " left";
-  t.classList.toggle("warn", left < 10 * 60000);
+  t.innerHTML = fmtLeft(left) + '<span class="tl">' + (paused ? " paused" : " left") + '</span>';
+  t.classList.toggle("warn", !paused && left < 10 * 60000);
+  t.classList.toggle("paused", paused);
+  if (paused) $("exPausedLeft").textContent = fmtLeft(left);
+}
+// Pause stops the clock and hides the questions; the pause survives a refresh
+function exPause(){
+  if (!ex || ex.status !== "running" || ex.pausedAt) return;
+  const now = Date.now();
+  ex.pausedAt = now; ex.pausedLeft = Math.max(0, ex.deadline - now);
+  if (exTimerId) clearInterval(exTimerId);
+  exSave(); exRender(); scrollToEl($("exRun"));
+  $("exResume").focus({preventScroll: true});
+}
+function exResume(){
+  if (!ex || !ex.pausedAt) return;
+  const now = Date.now();
+  ex.pausedMs = (ex.pausedMs || 0) + (now - ex.pausedAt);
+  ex.deadline = now + ex.pausedLeft;
+  delete ex.pausedAt; delete ex.pausedLeft;
+  exSave(); exRender(); exStartTimer();
 }
 function exStartTimer(){ if (exTimerId) clearInterval(exTimerId); exTimerId = setInterval(exTick, 1000); }
 function exGo(k){ ex.i = k; ex.view = "q"; exSave(); exRender(); scrollToEl($("exRun")); }
@@ -2802,6 +2840,7 @@ function exYours(q, r){
 function exFinish(timeUp){
   if (!ex || ex.status !== "running") return;
   if (exTimerId) clearInterval(exTimerId);
+  if (ex.pausedAt) { const now = Date.now(); ex.pausedMs = (ex.pausedMs || 0) + (now - ex.pausedAt); ex.deadline = now + ex.pausedLeft; delete ex.pausedAt; delete ex.pausedLeft; }
   const ids = ex.sections.flat();
   let P = 0, T = 0; const byDom = {};
   const items = ids.map(id => {
@@ -2815,7 +2854,7 @@ function exFinish(timeUp){
   psaveReview();
   const pct = T ? P / T : 0, scaled = Math.round(pct * 1000);
   ex.status = "done"; ex.timeUp = !!timeUp; ex.finished = Date.now();
-  ex.result = {P, T, pct, scaled, pass: scaled >= 700, byDom, items, used: Math.min(ex.finished, ex.deadline) - ex.start};
+  ex.result = {P, T, pct, scaled, pass: scaled >= 700, byDom, items, used: Math.max(0, Math.min(ex.finished, ex.deadline) - ex.start - (ex.pausedMs || 0)), pausedMs: ex.pausedMs || 0};
   exSave();
   const h = exHistory(); h.unshift({at: ex.finished, len: ex.len, n: ids.length, scaled, pass: scaled >= 700, used: ex.result.used, excl: ex.excl || [], rec: exRec(ex)});
   exSaveHistory(h);
@@ -2847,7 +2886,7 @@ function exRenderResult(E, past){
   }).join("");
   $("exResult").innerHTML = '<div class="score">' +
     (past ? '<p class="pastnote">Past exam, taken ' + esc(fmtWhen(E.finished)) + '</p>' : "") +
-    '<div class="scorehead"><h2>' + esc(L.label + exWithout(E.excl)) + ' result' + (E.timeUp ? " (time ran out)" : "") + '</h2><span class="scoresum">' + fmtDur(R.used) + ' of ' + (E.minutes || L.min) + ' min used</span></div>' +
+    '<div class="scorehead"><h2>' + esc(L.label + exWithout(E.excl)) + ' result' + (E.timeUp ? " (time ran out)" : "") + '</h2><span class="scoresum">' + fmtDur(R.used) + ' of ' + (E.minutes || L.min) + ' min used' + (R.pausedMs >= 60000 ? ' · paused ' + fmtDur(R.pausedMs) : "") + '</span></div>' +
     '<div class="exscore"><span class="big ' + (R.pass ? "pass" : "fail") + '">' + R.scaled + '</span><span>estimated score of 1000 · ' + (R.pass ? "a pass" : "below the 700 pass mark") + ' · ' +
       Math.round(100 * R.pct) + '% of points, with partial credit on multi-part items</span></div>' +
     '<div class="scorewrap"><table class="scoretable"><thead><tr><th>Domain</th><th class="num">Right</th><th class="num">Points</th><th class="barcell"><span class="sr">Bar</span></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
@@ -2976,7 +3015,7 @@ function exRestart(same){
   const old = ex;
   if (same) {
     ex = Object.assign({}, old, {status: "running", sec: 0, i: 0, ans: {}, flag: {}, view: "q", start: Date.now(), deadline: Date.now() + old.minutes * 60000});
-    delete ex.result; delete ex.finished; delete ex.timeUp;
+    delete ex.result; delete ex.finished; delete ex.timeUp; delete ex.pausedAt; delete ex.pausedLeft; delete ex.pausedMs;
   } else {
     ex = exBuild(old.len, $("exFresh").checked, old.excl || []);
   }
@@ -2989,6 +3028,8 @@ function exDiscard(){
   showExam(); window.scrollTo(0, 0);
 }
 $("exRestartBtn").addEventListener("click", () => exConfirmOpen("restart"));
+$("exPauseBtn").addEventListener("click", () => { if (ex && ex.pausedAt) exResume(); else exPause(); });
+$("exResume").addEventListener("click", exResume);
 $("exExitBtn").addEventListener("click", () => exConfirmOpen("exit"));
 $("exConfirmBtns").addEventListener("click", e => {
   const b = e.target.closest("[data-x]"); if (!b || !ex || ex.status !== "running") return;
@@ -3007,6 +3048,7 @@ function showExam(){
   if (!EX_READY) return;
   if (!ex) ex = exLoad();
   if (ex && ex.status === "running") {
+    if (ex.pausedAt) { if (exTimerId) clearInterval(exTimerId); exRender(); return; }
     if (Date.now() >= ex.deadline) { exFinish(true); return; }
     exRender(); exStartTimer(); return;
   }
