@@ -170,7 +170,8 @@ pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overfl
 .exarea:has(input:not(:checked)) .nm{color:var(--muted); text-decoration:line-through}
 .exareanote{margin:8px 0 0; font-size:.9rem; color:var(--rev)}
 .excheck{display:flex; gap:8px; align-items:center; color:var(--muted); font-size:.95rem}
-.excheck input{accent-color:var(--accent); width:18px; height:18px}
+.excheck input{accent-color:var(--accent); width:18px; height:18px; flex:none}
+.excheck .exfreshn{font-size:.85rem; opacity:.85}
 .exstart{align-self:flex-start; min-width:220px}
 .exfacts{border:1px solid var(--line); border-radius:12px; padding:12px 16px; background:var(--surface); font-size:.95rem; color:var(--muted)}
 .exfacts h3{margin:0 0 6px; font-family:var(--display); font-size:1rem; color:var(--ink)}
@@ -679,6 +680,7 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
         <p class="exareanote" id="exAreaNote" hidden></p>
       </fieldset>
       <label class="excheck"><input type="checkbox" id="exFresh" checked> Use questions I haven't answered in Practice first</label>
+      <label class="excheck"><input type="checkbox" id="exFreshMock" checked><span>Use questions I haven't had in an earlier mock exam first<span class="exfreshn" id="exFreshMockN"></span></span></label>
       <button class="btn check exstart" id="exStart" type="button">Start the exam</button>
       <div id="exResume" hidden></div>
       <div id="exHistory"></div>
@@ -2601,6 +2603,14 @@ var EX_WEIGHTS = {gen: 0.325, ops: 0.275, cv: 0.135, ie: 0.135, lang: 0.13};
 function exLoad(){ try { return JSON.parse(localStorage.getItem(EXKEY)); } catch (e) { return null; } }
 function exSave(){ try { localStorage.setItem(EXKEY, JSON.stringify(ex)); } catch (e) {} }
 function exHistory(){ try { return JSON.parse(localStorage.getItem(EXHKEY)) || []; } catch (e) { return []; } }
+// Questions each finished mock exam used, {id: {n: times, at: last time}}, kept apart from the history so trimming old answers never loses it
+var EXSKEY = "ai103-mock-seen-v1";
+function exSeen(){ try { return JSON.parse(localStorage.getItem(EXSKEY)) || {}; } catch (e) { return {}; } }
+function exMarkSeen(ids, at){
+  const s = exSeen();
+  ids.forEach(id => { const x = s[id] = s[id] || {n: 0, at: 0}; x.n++; x.at = Math.max(x.at, at); });
+  try { localStorage.setItem(EXSKEY, JSON.stringify(s)); } catch (e) {}
+}
 function shuffleArr(a){ a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
 // Draw questions by domain weight, unseen practice questions first if asked; a case study goes last as its own section
@@ -2622,16 +2632,25 @@ function exPlan(lenKey, excl){
   const minutes = total >= L.n ? L.min : Math.max(5, Math.round(L.min * total / L.n));
   return {n1, caseN, total, minutes};
 }
-// Draw questions by domain weight (kept areas only), unseen practice questions first if asked; a case study goes last as its own section
-function exBuild(lenKey, fresh, excl){
+// Draw questions by domain weight (kept areas only), questions new to Practice and/or earlier mock exams first if asked; a case study goes last as its own section
+function exBuild(lenKey, fresh, excl, freshMock){
   excl = excl || [];
   const L = EX_LENGTHS[lenKey], plan = exPlan(lenKey, excl);
-  const choices = L.kase ? exCaseChoices(excl).ids : [];
+  const seen = freshMock ? exSeen() : {}, sn = id => (seen[id] && seen[id].n) || 0;
+  let choices = L.kase ? exCaseChoices(excl).ids : [];
+  // With the mock option on, the case study you've had least often wins (ties at random)
+  if (freshMock && choices.length > 1) {
+    const used = id => PRACTICE.filter(q => q.case === id && !excl.includes(q.domain)).reduce((t, q) => t + sn(q.id), 0);
+    const lo = Math.min(...choices.map(used));
+    choices = choices.filter(id => used(id) === lo);
+  }
   const caseId = choices.length ? choices[Math.floor(Math.random() * choices.length)] : null;
   const caseQs = caseId ? PRACTICE.filter(q => q.case === caseId && !excl.includes(q.domain)).map(q => q.id) : [];
   const n1 = plan.n1;
   const pool = PRACTICE.filter(q => !q.case && !excl.includes(q.domain));
-  const order = list => fresh ? shuffleArr(list.filter(q => !presults[q.id])).concat(shuffleArr(list.filter(q => presults[q.id]))) : shuffleArr(list);
+  // New on every option that's on comes first, then new on one of them; among mock repeats, the ones you've had fewest times; ties at random
+  const rank = q => (fresh && presults[q.id] ? 1 : 0) + (sn(q.id) ? 1 : 0);
+  const order = list => shuffleArr(list).sort((a, b) => rank(a) - rank(b) || sn(a.id) - sn(b.id));
   const doms = Object.keys(EX_WEIGHTS).filter(d => !excl.includes(d));
   const wsum = doms.reduce((t, d) => t + EX_WEIGHTS[d], 0);
   const want = {}; let total = 0;
@@ -2648,7 +2667,7 @@ function exStart(){
   const len = (document.querySelector('input[name="exlen"]:checked') || {}).value || "full";
   const excl = exExcl();
   if (excl.length >= Object.keys(EX_WEIGHTS).length) return;
-  ex = exBuild(len, $("exFresh").checked, excl);
+  ex = exBuild(len, $("exFresh").checked, excl, $("exFreshMock").checked);
   exSave(); showExam(); window.scrollTo(0, 0);
 }
 function exWithout(excl){ return excl && excl.length ? " without " + excl.map(d => DOM_LABEL[d]).join(", ") : ""; }
@@ -2670,6 +2689,10 @@ function exRenderAreas(rebuild){
   note.textContent = all ? "Keep at least one topic area to start an exam." :
     "Excluded: " + excl.map(d => DOM_LABEL[d]).join(", ") + ". The questions are spread over the areas you kept, and the score only covers those." +
     (Object.keys(EX_LENGTHS).some(k => exPlan(k, excl).total < EX_LENGTHS[k].n) ? " Longer exams get shorter when there aren't enough questions left, with the time cut to match." : "");
+  // How many questions in the kept areas no finished mock exam has used yet
+  const seen = exSeen(), kept = PRACTICE.filter(q => !excl.includes(q.domain)), newN = kept.filter(q => !seen[q.id]).length;
+  $("exFreshMockN").textContent = !Object.keys(seen).length || !kept.length ? "" :
+    newN ? " · " + newN + " of " + kept.length + " still new" : " · you've had all " + kept.length + ", so the ones you've had least come first";
   exRenderProgress();   // stats hide excluded areas, so they follow every change
 }
 function exCur(){ return PBY[ex.sections[ex.sec][ex.i]]; }
@@ -2858,6 +2881,7 @@ function exFinish(timeUp){
   exSave();
   const h = exHistory(); h.unshift({at: ex.finished, len: ex.len, n: ids.length, scaled, pass: scaled >= 700, used: ex.result.used, excl: ex.excl || [], rec: exRec(ex)});
   exSaveHistory(h);
+  exMarkSeen(ids, ex.finished);
   showExam(); window.scrollTo(0, 0);
 }
 function fmtDur(ms){ const m = Math.round(ms / 60000); return m >= 60 ? Math.floor(m / 60) + " h " + (m % 60) + " min" : m + " min"; }
@@ -2983,8 +3007,9 @@ function exRenderProgress(){
       setTimeout(() => { if (clr.isConnected) { clr.classList.remove("armed"); clr.textContent = "Clear exam history"; } }, 4000);
       return;
     }
-    try { localStorage.removeItem(EXHKEY); } catch (e) {}
-    exRenderProgress();
+    // A clean slate: with no earlier exams, every question counts as new to mock exams again
+    try { localStorage.removeItem(EXHKEY); localStorage.setItem(EXSKEY, "{}"); } catch (e) {}
+    exRenderAreas();
   });
 }
 // Restart (same or new questions) and Exit (score what's answered, or discard), each confirmed in a small panel under the timer
@@ -3017,7 +3042,7 @@ function exRestart(same){
     ex = Object.assign({}, old, {status: "running", sec: 0, i: 0, ans: {}, flag: {}, view: "q", start: Date.now(), deadline: Date.now() + old.minutes * 60000});
     delete ex.result; delete ex.finished; delete ex.timeUp; delete ex.pausedAt; delete ex.pausedLeft; delete ex.pausedMs;
   } else {
-    ex = exBuild(old.len, $("exFresh").checked, old.excl || []);
+    ex = exBuild(old.len, $("exFresh").checked, old.excl || [], $("exFreshMock").checked);
   }
   exSave(); exConfirmClose(); showExam(); window.scrollTo(0, 0);
 }
@@ -3075,6 +3100,16 @@ $("exGrid").addEventListener("click", e => { const b = e.target.closest("button[
   const e = exLoad(); if (!e || e.status !== "done" || !e.result) return;
   const h = exHistory(), m = h.find(x => x.at === e.finished && !x.rec);
   if (m) { m.rec = exRec(e); exSaveHistory(h); }
+})();
+// Exams finished before the seen list existed: build it once from the saved history (exams saved as score only can't be counted)
+(function exSeenBackfill(){
+  try { if (localStorage.getItem(EXSKEY) !== null) return; } catch (e) { return; }
+  const s = {};
+  exHistory().forEach(x => {
+    if (!x.rec || !x.rec.sections) return;
+    x.rec.sections.flat().forEach(id => { const y = s[id] = s[id] || {n: 0, at: 0}; y.n++; y.at = Math.max(y.at, x.at || 0); });
+  });
+  try { localStorage.setItem(EXSKEY, JSON.stringify(s)); } catch (e) {}
 })();
 EX_READY = true;
 if (mode === "exam") showExam();
