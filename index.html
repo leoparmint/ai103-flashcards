@@ -208,7 +208,7 @@ pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overfl
 .exprog .sumline{margin:0; color:var(--muted); font-size:.95rem; font-variant-numeric:tabular-nums}
 .exprog .sumline b{color:var(--ink); font-weight:600}
 .exprog .focus{margin:0; font-size:.95rem; color:var(--rev)}
-.statt{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:.93rem; min-width:520px}
+.statt{width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:.93rem}
 .statt th{font-family:var(--mono); font-size:.66rem; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); text-align:left; padding:4px 8px 4px 0; border-bottom:1px solid var(--line); font-weight:500; vertical-align:bottom}
 .statt td{padding:8px 8px 8px 0; border-bottom:1px solid var(--line); vertical-align:top}
 .statt .w{display:block; font-family:var(--mono); font-size:.7rem; color:var(--muted)}
@@ -2866,9 +2866,9 @@ function exSaveHistory(h){
     if (keep === 0) return;
   }
 }
-// Every attempt so far, by domain, next to Practice and Flashcards
+// Every mock exam so far, by domain (mock exams only: Practice and Flashcards results aren't counted)
 function exDomainStats(){
-  const rows = DOMAINS.map(d => ({d, mp: 0, mt: 0, mn: 0, me: 0, last: null, pt: 0, pr: 0, fm: 0, fg: 0}));
+  const rows = DOMAINS.map(d => ({d, mp: 0, mt: 0, mn: 0, me: 0, last: null}));
   const by = Object.fromEntries(rows.map(r => [r.d.id, r]));
   const hs = exHistory().filter(x => x.rec && x.rec.result && x.rec.result.byDom);
   // "Last exam" is the newest exam only: a domain it didn't include shows a dash
@@ -2877,43 +2877,34 @@ function exDomainStats(){
     r.mp += y.p; r.mt += y.t; r.mn += y.n; r.me++;
     if (k === 0) r.last = y.p / y.t;
   }));
-  PRACTICE.forEach(q => { const r = by[q.domain], v = presults[q.id]; if (!r || !v) return; r.pt++; if (v === "right") r.pr++; });
-  CARDS.forEach(c => { const r = by[DECK_DOM[c.deck]], m = marks[c.id]; if (!r || !m) return; r.fm++; if (m === "got") r.fg++; });
   return rows;
 }
 function exRenderProgress(){
-  const h = exHistory(), withRec = h.filter(x => x.rec && x.rec.result);
+  const h = exHistory();
   const stats = exDomainStats();
-  const anyStats = h.length || stats.some(r => r.pt || r.fm);
-  if (!anyStats) { $("exHistory").innerHTML = ""; return; }
+  if (!h.length) { $("exHistory").innerHTML = ""; return; }
   const pc = (a, b) => Math.round(100 * a / b);
-  const cell = (a, b, sub) => b ? '<span class="pc">' + pc(a, b) + '%</span><span class="sub">' + sub + '</span>' : '<span class="none">—</span>';
   const plural = (n, w) => n + " " + w + (n === 1 ? "" : "s");
   const rows = stats.map(r => EXCL.has(r.d.id)
-    ? '<tr class="off"><td>' + esc(r.d.label) + '<span class="w">' + r.d.w + ' of the exam</span></td><td class="exclcell" colspan="4">Excluded, so it isn\'t counted here' +
+    ? '<tr class="off"><td>' + esc(r.d.label) + '<span class="w">' + r.d.w + ' of the exam</span></td><td class="exclcell" colspan="2">Excluded, so it isn\'t counted here' +
       (r.mn ? '. ' + plural(r.mn, "question") + ' came from ' + (r.me === 1 ? "an earlier exam" : r.me + " earlier exams") + ' that included it.' : ".") + ' Check it again under Topic areas to see its stats.</td></tr>'
     : '<tr><td>' + esc(r.d.label) + '<span class="w">' + r.d.w + ' of the exam</span></td>' +
-    '<td data-l="Mock exams">' + (r.mt ? '<span class="pc">' + pc(r.mp, r.mt) + '%</span><span class="sub">of points · ' + plural(r.mn, "question") + ' in ' + plural(r.me, "exam") + '</span><span class="bar"><i style="width:' + pc(r.mp, r.mt) + '%"></i></span>' : '<span class="none">—</span>') + '</td>' +
-    '<td data-l="Last exam">' + (r.last === null ? '<span class="none">—</span>' : '<span class="pc">' + Math.round(100 * r.last) + '%</span>') + '</td>' +
-    '<td data-l="Practice">' + cell(r.pr, r.pt, r.pr + " of " + r.pt + " right") + '</td>' +
-    '<td data-l="Flashcards">' + cell(r.fg, r.fm, r.fg + " of " + r.fm + " got it") + '</td></tr>').join("");
-  // The weakest area: lowest share of mock exam points (at least 4 questions), else lowest practice score (at least 3 tried)
-  const kept = stats.filter(r => !EXCL.has(r.d.id));
-  const cand = kept.filter(r => r.mn >= 4).map(r => ({r, v: r.mp / r.mt, src: "on mock exams"}));
-  const pool = cand.length ? cand : kept.filter(r => r.pt >= 3).map(r => ({r, v: r.pr / r.pt, src: "in Practice"}));
-  const weak = pool.sort((a, b) => a.v - b.v)[0];
+    '<td data-l="All mock exams">' + (r.mt ? '<span class="pc">' + pc(r.mp, r.mt) + '%</span><span class="sub">of points · ' + plural(r.mn, "question") + ' in ' + plural(r.me, "exam") + '</span><span class="bar"><i style="width:' + pc(r.mp, r.mt) + '%"></i></span>' : '<span class="none">—</span>') + '</td>' +
+    '<td data-l="Last exam">' + (r.last === null ? '<span class="none">—</span>' : '<span class="pc">' + Math.round(100 * r.last) + '%</span>') + '</td></tr>').join("");
+  // The weakest area: lowest share of mock exam points, among kept areas with at least 4 questions
+  const weak = stats.filter(r => !EXCL.has(r.d.id) && r.mn >= 4).map(r => ({r, v: r.mp / r.mt, src: "on mock exams"})).sort((a, b) => a.v - b.v)[0];
   const focus = weak && weak.v < 0.8 ? '<p class="focus">Weakest so far: <b>' + esc(weak.r.d.label) + '</b> at ' + Math.round(100 * weak.v) + '% ' + weak.src + '. It\'s ' + weak.r.d.w + ' of the real exam.</p>' : "";
   let sum = "";
-  if (withRec.length || h.length) {
+  {
     const sc = h.map(x => x.scaled), avg = Math.round(sc.reduce((a, b) => a + b, 0) / sc.length), best = Math.max(...sc), passes = h.filter(x => x.pass).length;
     sum = '<p class="sumline"><b>' + h.length + '</b> exam' + (h.length === 1 ? "" : "s") + ' · average <b>' + avg + '</b> · best <b>' + best + '</b> · last <b>' + sc[0] + '</b> · ' + passes + ' at 700 or more</p>';
-  } else sum = '<p class="sumline">No mock exams yet. Practice and Flashcards results are below.</p>';
+  }
   const list = h.length ? '<h3 style="margin-top:6px">Every exam</h3><div class="scorewrap"><table class="exhist"><thead><tr><th>Date</th><th>Exam</th><th>Score</th><th>Time</th><th><span class="sr">Open</span></th></tr></thead><tbody>' +
     h.map((x, k) => '<tr><td>' + esc(fmtWhen(x.at)) + '</td><td>' + esc(((EX_LENGTHS[x.len] || {}).label || "") + exWithout(x.excl)) + '</td><td><span class="pill ' + (x.pass ? "got" : "miss") + '">' + x.scaled + '</span></td><td>' + fmtDur(x.used) + '</td>' +
       '<td class="review">' + (x.rec && x.rec.result ? '<button class="textbtn" type="button" data-past="' + k + '">See answers</button>' : '<span class="nodet" title="Taken before answers were saved">Score only</span>') + '</td></tr>').join("") +
     '</tbody></table></div><button class="textbtn" id="exClearHist" type="button" style="align-self:flex-start">Clear exam history</button>' : "";
-  $("exHistory").innerHTML = '<section class="exprog" id="exProg" aria-label="Your progress"><h3>Your progress by domain</h3>' + sum + focus +
-    '<div class="scorewrap"><table class="statt"><thead><tr><th>Domain</th><th>Mock exams</th><th>Last exam</th><th>Practice</th><th>Flashcards</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + list + '</section>';
+  $("exHistory").innerHTML = '<section class="exprog" id="exProg" aria-label="Your progress"><h3>Your mock exams by domain</h3>' + sum + focus +
+    '<div class="scorewrap"><table class="statt"><thead><tr><th>Domain</th><th>All mock exams</th><th>Last exam</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + list + '</section>';
   $("exHistory").querySelectorAll("[data-past]").forEach(b => b.addEventListener("click", () => {
     const x = exHistory()[Number(b.dataset.past)];
     if (!x || !x.rec) return;
