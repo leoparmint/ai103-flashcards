@@ -332,6 +332,7 @@ pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overfl
 @media (max-width:420px){ .mode{padding:8px 10px; font-size:.9rem} }
 .textbtn{font:inherit; font-size:.88rem; background:none; border:0; color:var(--muted); text-decoration:underline; text-underline-offset:3px; cursor:pointer; padding:4px 0}
 .textbtn.armed{color:var(--miss)}
+.btn.armed{border-color:var(--rev); color:var(--rev)}
 .empty{background:var(--surface); border:1px dashed var(--line); border-radius:16px; padding:28px 20px; text-align:center; color:var(--muted); min-height:180px; display:flex; flex-direction:column; justify-content:center; gap:6px}
 .empty strong{color:var(--ink); font-family:var(--display); font-size:1.15rem}
 .keys{font-size:.82rem; color:var(--muted)}
@@ -2989,6 +2990,31 @@ function exYours(q, r){
 }
 // Any part of an answer given (a partly done build list or Yes/No still counts as answered)
 function exTouched(id){ const r = ex.ans[id]; return !!(r && r.length && !r.every(v => v === null || v === undefined)); }
+function exTouchedIn(E, id){ const r = E.ans && E.ans[id]; return !!(r && r.length && !r.every(v => v === null || v === undefined)); }
+// Rescore a finished exam as an early exit: unanswered questions leave the score, the domain stats, the review pile and the mock rotation
+function exRescore(E){
+  const R = E.result; if (!R || R.early) return;
+  let P = 0, T = 0; const byDom = {}, dropped = [];
+  R.items = R.items.map(x => {
+    if (!exTouchedIn(E, x.id)) { dropped.push(x.id); return {id: x.id, p: 0, t: 0, skipped: true}; }
+    const q = PBY[x.id]; if (!q) return x;
+    P += x.p; T += x.t;
+    const d = byDom[q.domain] = byDom[q.domain] || {p: 0, t: 0, right: 0, n: 0};
+    d.p += x.p; d.t += x.t; d.n++; if (x.p === x.t) d.right++;
+    return x;
+  });
+  const pct = T ? P / T : 0, scaled = Math.round(pct * 1000);
+  Object.assign(R, {P, T, pct, scaled, pass: scaled >= 700, byDom, early: true, skipped: dropped.length, scored: R.items.length - dropped.length, rescored: true});
+  // the review entries this exam added for blanks (stamped at finish time) come out again
+  dropped.forEach(id => { const v = preview[id]; if (v && v.w === "wrong" && Math.abs((v.at || 0) - E.finished) < 120000) delete preview[id]; });
+  psaveReview();
+  const seen = exSeen();
+  dropped.forEach(id => { const x = seen[id]; if (!x) return; x.n--; if (x.n <= 0) delete seen[id]; });
+  try { localStorage.setItem(EXSKEY, JSON.stringify(seen)); } catch (e) {}
+  if (ex && ex.finished === E.finished) { ex = E; exSave(); }
+  const h = exHistory(), m = h.find(x => x.at === E.finished);
+  if (m) { Object.assign(m, {n: R.scored, total: R.items.length, early: true, scaled, pass: scaled >= 700, rec: exRec(E)}); exSaveHistory(h); }
+}
 // early = exited with "Score what I've answered": questions you didn't touch are left out of the score.
 // Finishing normally or running out of time counts them as wrong, as on the real exam.
 function exFinish(timeUp, early){
@@ -3028,6 +3054,7 @@ function exRenderResult(E, past){
       '<td class="barcell"><span class="bar"><i style="width:' + pc + '%"></i></span></td></tr>';
   }).join("");
   const missed = R.items.filter(x => !x.skipped && x.p < x.t).length;
+  const blanks = R.early ? 0 : R.items.filter(x => !x.skipped && !exTouchedIn(E, x.id)).length;
   const list = R.items.map((x, k) => {
     const q = PBY[x.id], r = E.ans[x.id];
     if (!q) return "";
@@ -3046,14 +3073,16 @@ function exRenderResult(E, past){
     '<div class="scorehead"><h2>' + esc(L.label + exWithout(E.excl)) + ' result' + (E.timeUp ? " (time ran out)" : "") + '</h2><span class="scoresum">' + fmtDur(R.used) + ' of ' + (E.minutes || L.min) + ' min used' + (R.pausedMs >= 60000 ? ' · paused ' + fmtDur(R.pausedMs) : "") + '</span></div>' +
     '<div class="exscore"><span class="big ' + (R.pass ? "pass" : "fail") + '">' + R.scaled + '</span><span>estimated score of 1000 · ' + (R.pass ? "a pass" : "below the 700 pass mark") + ' · ' +
       Math.round(100 * R.pct) + '% of points, with partial credit on multi-part items</span></div>' +
-    (R.early ? '<p class="earlynote">You exited early, so this scores only the ' + R.scored + ' question' + (R.scored === 1 ? "" : "s") + ' you answered. ' + R.skipped + ' unanswered question' + (R.skipped === 1 ? " isn't" : "s aren't") + ' counted' +
+    (R.early ? '<p class="earlynote">' + (R.rescored ? "Rescored without unanswered questions: this" : "You exited early, so this") + ' scores only the ' + R.scored + ' question' + (R.scored === 1 ? "" : "s") + ' you answered. ' + R.skipped + ' unanswered question' + (R.skipped === 1 ? " isn't" : "s aren't") + ' counted' +
       ' and ' + (R.skipped === 1 ? "stays" : "stay") + ' new for your next mock exam.</p>' : "") +
     '<div class="scorewrap"><table class="scoretable"><thead><tr><th>Domain</th><th class="num">Right</th><th class="num">Points</th><th class="barcell"><span class="sr">Bar</span></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     '<p class="scorenote">' + (missed ? missed + " question" + (missed > 1 ? "s" : "") + " you missed " + (past ? "went into" : missed > 1 ? "are now in" : "is now in") + " your Review tab." : "You got every question right.") + ' Microsoft scales scores, so this is a rough guide, not a prediction.' +
       (E.excl && E.excl.length ? ' This score leaves out ' + esc(E.excl.map(d => DOM_LABEL[d]).join(", ")) + ', which the real exam includes.' : "") + '</p>' +
     '<div class="exbtns" style="display:flex; flex-wrap:wrap; gap:8px">' +
     (past ? '<button class="btn check" id="exPastBack" type="button">Back to your exams</button>' : '<button class="btn check" id="exAgain" type="button">Take another exam</button><button class="btn" id="exToHist" type="button">History and domain stats</button>') +
-    (missed ? '<button class="btn" id="exOnlyMissed" type="button" aria-pressed="false">Show only what I missed</button>' : "") + '</div></div>' +
+    (missed ? '<button class="btn" id="exOnlyMissed" type="button" aria-pressed="false">Show only what I missed</button>' : "") +
+    (blanks ? '<button class="btn" id="exRescore" type="button">Leave out the ' + blanks + ' unanswered</button>' : "") + '</div>' +
+    (blanks ? '<p class="scorenote" style="margin:0">This score counts ' + blanks + ' unanswered question' + (blanks === 1 ? "" : "s") + ' as wrong. Leave them out to score only what you answered.</p>' : "") + '</div>' +
     '<h2 style="font-family:var(--display); font-size:1.15rem; margin:18px 0 8px">Every question, with the answer</h2><div class="exitems" id="exItems">' + list + '</div>';
   const toSetup = scrollToStats => {
     exPast = null;
@@ -3063,6 +3092,11 @@ function exRenderResult(E, past){
   };
   if (past) $("exPastBack").addEventListener("click", () => toSetup(true));
   else { $("exAgain").addEventListener("click", () => toSetup(false)); $("exToHist").addEventListener("click", () => toSetup(true)); }
+  if (blanks) $("exRescore").addEventListener("click", () => {
+    const b = $("exRescore");
+    if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Tap again to rescore without them"; setTimeout(() => { if (b.isConnected) { b.classList.remove("armed"); b.textContent = "Leave out the " + blanks + " unanswered"; } }, 4000); return; }
+    exRescore(E); exRenderResult(E, past); window.scrollTo(0, 0);
+  });
   if (missed) $("exOnlyMissed").addEventListener("click", e => {
     const on = e.currentTarget.getAttribute("aria-pressed") !== "true";
     e.currentTarget.setAttribute("aria-pressed", String(on));
