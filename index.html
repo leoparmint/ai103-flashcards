@@ -2636,11 +2636,13 @@ function exPlan(lenKey, excl){
 function exBuild(lenKey, fresh, excl, freshMock){
   excl = excl || [];
   const L = EX_LENGTHS[lenKey], plan = exPlan(lenKey, excl);
-  const seen = freshMock ? exSeen() : {}, sn = id => (seen[id] && seen[id].n) || 0;
+  // When each question was last in a finished mock (0 = never). Drawing the longest-ago first is a rotation:
+  // back-to-back mocks never share a question while each domain has enough questions for all of them
+  const seen = freshMock ? exSeen() : {}, last = id => (seen[id] && seen[id].at) || 0;
   let choices = L.kase ? exCaseChoices(excl).ids : [];
-  // With the mock option on, the case study you've had least often wins (ties at random)
+  // With the mock option on, the case study you had longest ago (or never) wins, ties at random
   if (freshMock && choices.length > 1) {
-    const used = id => PRACTICE.filter(q => q.case === id && !excl.includes(q.domain)).reduce((t, q) => t + sn(q.id), 0);
+    const used = id => Math.max(0, ...PRACTICE.filter(q => q.case === id && !excl.includes(q.domain)).map(q => last(q.id)));
     const lo = Math.min(...choices.map(used));
     choices = choices.filter(id => used(id) === lo);
   }
@@ -2648,9 +2650,10 @@ function exBuild(lenKey, fresh, excl, freshMock){
   const caseQs = caseId ? PRACTICE.filter(q => q.case === caseId && !excl.includes(q.domain)).map(q => q.id) : [];
   const n1 = plan.n1;
   const pool = PRACTICE.filter(q => !q.case && !excl.includes(q.domain));
-  // New on every option that's on comes first, then new on one of them; among mock repeats, the ones you've had fewest times; ties at random
-  const rank = q => (fresh && presults[q.id] ? 1 : 0) + (sn(q.id) ? 1 : 0);
-  const order = list => shuffleArr(list).sort((a, b) => rank(a) - rank(b) || sn(a.id) - sn(b.id));
+  // Mock option: never had first, then the ones you had longest ago. Practice option: unanswered in Practice
+  // first (within each of those groups when both are on). Ties at random
+  const prac = q => fresh && presults[q.id] ? 1 : 0;
+  const order = list => shuffleArr(list).sort((a, b) => last(a.id) - last(b.id) || prac(a) - prac(b));
   const doms = Object.keys(EX_WEIGHTS).filter(d => !excl.includes(d));
   const wsum = doms.reduce((t, d) => t + EX_WEIGHTS[d], 0);
   const want = {}; let total = 0;
@@ -2692,7 +2695,7 @@ function exRenderAreas(rebuild){
   // How many questions in the kept areas no finished mock exam has used yet
   const seen = exSeen(), kept = PRACTICE.filter(q => !excl.includes(q.domain)), newN = kept.filter(q => !seen[q.id]).length;
   $("exFreshMockN").textContent = !Object.keys(seen).length || !kept.length ? "" :
-    newN ? " · " + newN + " of " + kept.length + " still new" : " · you've had all " + kept.length + ", so the ones you've had least come first";
+    newN ? " · " + newN + " of " + kept.length + " still new" : " · you've had all " + kept.length + ", so the ones you had longest ago come first";
   exRenderProgress();   // stats hide excluded areas, so they follow every change
 }
 function exCur(){ return PBY[ex.sections[ex.sec][ex.i]]; }
