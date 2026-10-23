@@ -178,6 +178,25 @@ pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overfl
 .exbar{position:sticky; top:0; z-index:5; display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 14px; margin:0 -2px; background:var(--bg); border-bottom:1px solid var(--line); font-size:.93rem; color:var(--muted)}
 .extimer{font-family:var(--mono); font-size:1.05rem; font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap; flex:none}
 #exPos{min-width:0}
+#exPos .short{display:none}
+.exright{display:inline-flex; align-items:center; gap:8px; flex:none}
+.exright .extimer{margin-right:4px}
+.exctl{font:inherit; font-size:.84rem; background:none; border:1px solid var(--line); color:var(--muted); border-radius:999px; padding:3px 11px; cursor:pointer; white-space:nowrap}
+.exctl:hover{color:var(--ink); border-color:var(--muted)}
+.exctl:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+.exctl[aria-expanded="true"]{color:var(--rev); border-color:var(--rev)}
+.exconfirm{border:1px solid var(--rev); border-radius:12px; background:var(--surface); padding:12px 14px; margin:10px 0 4px; display:flex; flex-direction:column; gap:8px}
+.exconfirm p{margin:0}
+.exconfirm .t{font-family:var(--display); font-weight:600; font-size:1.05rem}
+.exconfirm .s{color:var(--muted); font-size:.93rem}
+.exconfirm .exbtns{display:flex; flex-wrap:wrap; gap:8px}
+@media (max-width:560px){
+  #exPos .long{display:none}
+  #exPos .short{display:inline}
+  .exbar{padding:8px 10px; gap:8px}
+  .exright{gap:6px}
+  .exctl{padding:3px 9px}
+}
 .extimer.warn{color:var(--miss)}
 .exflag{display:inline-flex; gap:6px; align-items:center; font-family:var(--body); text-transform:none; letter-spacing:0; font-size:.88rem; color:var(--rev); cursor:pointer}
 .exflag input{accent-color:var(--rev); width:16px; height:16px}
@@ -669,7 +688,13 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
     </section>
 
     <section id="exRun" hidden>
-      <div class="exbar"><span id="exPos"></span><span class="extimer" id="exTimer" aria-live="off"></span></div>
+      <div class="exbar"><span id="exPos"></span><span class="exright"><span class="extimer" id="exTimer" aria-live="off"></span>
+        <button class="exctl" id="exRestartBtn" type="button" aria-expanded="false" aria-controls="exConfirm">Restart</button><button class="exctl" id="exExitBtn" type="button" aria-expanded="false" aria-controls="exConfirm">Exit</button></span></div>
+      <div class="exconfirm" id="exConfirm" role="alertdialog" aria-labelledby="exConfirmTitle" aria-describedby="exConfirmText" hidden>
+        <p class="t" id="exConfirmTitle"></p>
+        <p class="s" id="exConfirmText"></p>
+        <div class="exbtns" id="exConfirmBtns"></div>
+      </div>
       <div id="exQuestion">
         <article class="qcard">
           <div class="meta"><span id="exMeta"></span><label class="exflag"><input type="checkbox" id="exFlag"> Mark for review</label></div>
@@ -2671,7 +2696,8 @@ function exDrawSeq(q){
 function exShowQuestion(){
   const q = exCur(), L = EX_LENGTHS[ex.len];
   const secN = ex.sections.length, total = ex.sections[ex.sec].length;
-  $("exPos").textContent = (secN > 1 ? "Section " + (ex.sec + 1) + " of " + secN + " · " : "") + "Question " + (ex.i + 1) + " of " + total;
+  $("exPos").innerHTML = '<span class="long">' + (secN > 1 ? "Section " + (ex.sec + 1) + " of " + secN + " · " : "") + "Question " + (ex.i + 1) + " of " + total + '</span>' +
+    '<span class="short">' + (secN > 1 ? (ex.sec === secN - 1 && ex.caseId ? "Case " : "S" + (ex.sec + 1) + " ") : "") + "Q" + (ex.i + 1) + "/" + total + '</span>';
   $("exMeta").innerHTML = '<span class="cnum">Q' + q.num + '</span>' + esc(TYPE_LABEL[q.type] + (q.type === "multi" ? " · choose " + NUMW[q.answer.length] : ""));
   $("exFlag").checked = !!ex.flag[q.id];
   const c = q.case && CASES[q.case];
@@ -2714,6 +2740,7 @@ function exShowReview(){
 }
 function exRender(){
   $("exSetup").hidden = true; $("exResult").hidden = true; $("exRun").hidden = false;
+  exConfirmClose();
   const onReview = ex.view === "review";
   $("exQuestion").hidden = onReview; $("exReviewScreen").hidden = !onReview;
   if (onReview) exShowReview(); else exShowQuestion();
@@ -2921,6 +2948,61 @@ function exRenderProgress(){
     exRenderProgress();
   });
 }
+// Restart (same or new questions) and Exit (score what's answered, or discard), each confirmed in a small panel under the timer
+function exConfirmClose(){
+  $("exConfirm").hidden = true;
+  ["exRestartBtn", "exExitBtn"].forEach(id => $(id).setAttribute("aria-expanded", "false"));
+}
+function exConfirmOpen(kind){
+  const btn = $(kind === "restart" ? "exRestartBtn" : "exExitBtn");
+  if (!$("exConfirm").hidden && btn.getAttribute("aria-expanded") === "true") { exConfirmClose(); btn.focus(); return; }
+  exConfirmClose();
+  const ids = ex.sections.flat(), done = ids.filter(exAnswered).length;
+  if (kind === "restart") {
+    $("exConfirmTitle").textContent = "Restart this exam?";
+    $("exConfirmText").textContent = "Your " + done + " answer" + (done === 1 ? "" : "s") + " so far will be thrown away and the timer starts again at " + ex.minutes + " minutes. Nothing is saved to your history.";
+    $("exConfirmBtns").innerHTML = '<button class="btn check" type="button" data-x="new">Start over with new questions</button><button class="btn" type="button" data-x="same">Same questions again</button><button class="btn" type="button" data-x="cancel">Keep going</button>';
+  } else {
+    $("exConfirmTitle").textContent = "Exit this exam?";
+    $("exConfirmText").textContent = "You've answered " + done + " of " + ids.length + ". Score it now to see your results (unanswered questions count as wrong), or leave without a score.";
+    $("exConfirmBtns").innerHTML = '<button class="btn check" type="button" data-x="score">Score what I\'ve answered</button><button class="btn danger" type="button" data-x="discard">Exit without scoring</button><button class="btn" type="button" data-x="cancel">Keep going</button>';
+  }
+  btn.setAttribute("aria-expanded", "true");
+  $("exConfirm").hidden = false;
+  if ($("exConfirm").getBoundingClientRect().bottom > window.innerHeight || $("exConfirm").getBoundingClientRect().top < 0) scrollToEl($("exRun"));
+  $("exConfirmBtns").querySelector("button").focus({preventScroll: true});
+}
+function exRestart(same){
+  const old = ex;
+  if (same) {
+    ex = Object.assign({}, old, {status: "running", sec: 0, i: 0, ans: {}, flag: {}, view: "q", start: Date.now(), deadline: Date.now() + old.minutes * 60000});
+    delete ex.result; delete ex.finished; delete ex.timeUp;
+  } else {
+    ex = exBuild(old.len, $("exFresh").checked, old.excl || []);
+  }
+  exSave(); exConfirmClose(); showExam(); window.scrollTo(0, 0);
+}
+function exDiscard(){
+  exConfirmClose();
+  ex = null; try { localStorage.removeItem(EXKEY); } catch (e) {}
+  if (exTimerId) clearInterval(exTimerId);
+  showExam(); window.scrollTo(0, 0);
+}
+$("exRestartBtn").addEventListener("click", () => exConfirmOpen("restart"));
+$("exExitBtn").addEventListener("click", () => exConfirmOpen("exit"));
+$("exConfirmBtns").addEventListener("click", e => {
+  const b = e.target.closest("[data-x]"); if (!b || !ex || ex.status !== "running") return;
+  const x = b.dataset.x;
+  if (x === "cancel") { const open = document.querySelector('.exctl[aria-expanded="true"]'); exConfirmClose(); if (open) open.focus(); }
+  else if (x === "new") exRestart(false);
+  else if (x === "same") exRestart(true);
+  else if (x === "score") { exConfirmClose(); exFinish(false); }
+  else if (x === "discard") exDiscard();
+});
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape" || $("exConfirm").hidden) return;
+  const open = document.querySelector('.exctl[aria-expanded="true"]'); exConfirmClose(); if (open) open.focus();
+});
 function showExam(){
   if (!EX_READY) return;
   if (!ex) ex = exLoad();
