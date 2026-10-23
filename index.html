@@ -239,6 +239,10 @@ pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overfl
 .exitem.missed{border-left:3px solid var(--miss)}
 .exitem.missed.partial{border-left-color:var(--rev)}
 .exitem.gotit{border-left:3px solid var(--good-soft)}
+.exitem.skipped{opacity:.75}
+.pill.skip{background:var(--bg); color:var(--muted); border:1px solid var(--line)}
+.exitem .yours.skip{color:var(--muted)}
+.earlynote{margin:0; padding:8px 12px; border-radius:8px; background:var(--bg); border-left:3px solid var(--rev); font-size:.93rem; color:var(--ink)}
 .exopts2 li.bad{color:var(--miss); font-weight:600}
 .exopts2 li.bad::after{content:" \2717 your pick"}
 .exopts2 li.ok.mine::after{content:" \2713 your pick"}
@@ -2983,13 +2987,18 @@ function exYours(q, r){
   if (q.type === "yesno") return r.map((v, k) => (k + 1) + ". " + (v === null ? "none" : v ? "Yes" : "No")).join(" · ");
   return "";
 }
-function exFinish(timeUp){
+// Any part of an answer given (a partly done build list or Yes/No still counts as answered)
+function exTouched(id){ const r = ex.ans[id]; return !!(r && r.length && !r.every(v => v === null || v === undefined)); }
+// early = exited with "Score what I've answered": questions you didn't touch are left out of the score.
+// Finishing normally or running out of time counts them as wrong, as on the real exam.
+function exFinish(timeUp, early){
   if (!ex || ex.status !== "running") return;
   if (exTimerId) clearInterval(exTimerId);
   if (ex.pausedAt) { const now = Date.now(); ex.pausedMs = (ex.pausedMs || 0) + (now - ex.pausedAt); ex.deadline = now + ex.pausedLeft; delete ex.pausedAt; delete ex.pausedLeft; }
   const ids = ex.sections.flat();
   let P = 0, T = 0; const byDom = {};
   const items = ids.map(id => {
+    if (early && !exTouched(id)) return {id, p: 0, t: 0, skipped: true};
     const q = PBY[id], r = ex.ans[id] || [], [p, t] = pGrade(q, r);
     P += p; T += t;
     const d = byDom[q.domain] = byDom[q.domain] || {p: 0, t: 0, right: 0, n: 0};
@@ -3000,11 +3009,12 @@ function exFinish(timeUp){
   psaveReview();
   const pct = T ? P / T : 0, scaled = Math.round(pct * 1000);
   ex.status = "done"; ex.timeUp = !!timeUp; ex.finished = Date.now();
-  ex.result = {P, T, pct, scaled, pass: scaled >= 700, byDom, items, used: Math.max(0, Math.min(ex.finished, ex.deadline) - ex.start - (ex.pausedMs || 0)), pausedMs: ex.pausedMs || 0};
+  const skipped = items.filter(x => x.skipped).length;
+  ex.result = {P, T, pct, scaled, pass: scaled >= 700, byDom, items, early: !!early, skipped, scored: items.length - skipped, used: Math.max(0, Math.min(ex.finished, ex.deadline) - ex.start - (ex.pausedMs || 0)), pausedMs: ex.pausedMs || 0};
   exSave();
-  const h = exHistory(); h.unshift({at: ex.finished, len: ex.len, n: ids.length, scaled, pass: scaled >= 700, used: ex.result.used, excl: ex.excl || [], rec: exRec(ex)});
+  const h = exHistory(); h.unshift({at: ex.finished, len: ex.len, n: ids.length - skipped, total: ids.length, early: !!early, scaled, pass: scaled >= 700, used: ex.result.used, excl: ex.excl || [], rec: exRec(ex)});
   exSaveHistory(h);
-  exMarkSeen(ids, ex.finished);
+  exMarkSeen(early ? ids.filter(exTouched) : ids, ex.finished);   // questions you never got to stay new for later mocks
   showExam(); window.scrollTo(0, 0);
 }
 function fmtDur(ms){ const m = Math.round(ms / 60000); return m >= 60 ? Math.floor(m / 60) + " h " + (m % 60) + " min" : m + " min"; }
@@ -3017,18 +3027,18 @@ function exRenderResult(E, past){
     return '<tr><td>' + esc(d.label) + '<span class="w">' + d.w + ' of the exam</span></td><td class="num">' + x.right + ' / ' + x.n + '</td><td class="num">' + pc + '%</td>' +
       '<td class="barcell"><span class="bar"><i style="width:' + pc + '%"></i></span></td></tr>';
   }).join("");
-  const missed = R.items.filter(x => x.p < x.t).length;
+  const missed = R.items.filter(x => !x.skipped && x.p < x.t).length;
   const list = R.items.map((x, k) => {
     const q = PBY[x.id], r = E.ans[x.id];
     if (!q) return "";
-    const st = x.p === x.t ? '<span class="pill got">Right</span>' : x.p > 0 ? '<span class="pill part">' + x.p + ' of ' + x.t + ' points</span>' : '<span class="pill miss">' + (r && r.length && !r.every(v => v === null) ? "Wrong" : "Unanswered") + '</span>';
+    const st = x.skipped ? '<span class="pill skip">Not scored</span>' : x.p === x.t ? '<span class="pill got">Right</span>' : x.p > 0 ? '<span class="pill part">' + x.p + ' of ' + x.t + ' points</span>' : '<span class="pill miss">' + (r && r.length && !r.every(v => v === null) ? "Wrong" : "Unanswered") + '</span>';
     const c = q.case && CASES[q.case];
-    return '<details class="exitem' + (x.p < x.t ? " missed" + (x.p > 0 ? " partial" : "") : " gotit") + '"><summary><span class="cnum">Q' + q.num + '</span>' + st +
+    return '<details class="exitem' + (x.skipped ? " skipped" : x.p < x.t ? " missed" + (x.p > 0 ? " partial" : "") : " gotit") + '"><summary><span class="cnum">Q' + q.num + '</span>' + st +
       '<span class="rmeta">' + esc(DOM_LABEL[q.domain] + " · " + TYPE_LABEL[q.type]) + '</span>' +
       '<button class="copybtn excopy" type="button" data-copy="exam" data-id="' + esc(q.id) + '" aria-label="Copy this question" title="Copy this question">' + COPY_ICON + '</button><span class="rq" style="flex-basis:100%">' + esc(plainText(q.stem)) + '</span></summary>' +
       '<div class="exbody">' + (c ? '<details class="case"><summary>Case study: ' + esc(c.title) + '</summary><div class="casebody">' + c.html + '</div></details>' : "") +
       '<div class="stem">' + q.stem + '</div>' + exOptionsHTML(q, r) +
-      '<p class="yours ' + (x.p === x.t ? "right" : x.p > 0 ? "part" : "wrong") + '"><b>Your answer</b>' + exYoursHTML(q, r) + '</p>' + keyHTML(q) + '<div class="explain">' + q.explain + '</div>' + qSkillHTML(q) +
+      (x.skipped ? '<p class="yours skip"><b>Your answer</b>Not answered. You exited before this one, so it isn\'t in your score.</p>' : '<p class="yours ' + (x.p === x.t ? "right" : x.p > 0 ? "part" : "wrong") + '"><b>Your answer</b>' + exYoursHTML(q, r) + '</p>') + keyHTML(q) + '<div class="explain">' + q.explain + '</div>' + qSkillHTML(q) +
       '<p class="srcline">Source: <a class="link" href="' + esc(q.src.u) + '" target="_blank" rel="noopener">' + esc(q.src.t) + '</a></p></div></details>';
   }).join("");
   $("exResult").innerHTML = '<div class="score">' +
@@ -3036,8 +3046,10 @@ function exRenderResult(E, past){
     '<div class="scorehead"><h2>' + esc(L.label + exWithout(E.excl)) + ' result' + (E.timeUp ? " (time ran out)" : "") + '</h2><span class="scoresum">' + fmtDur(R.used) + ' of ' + (E.minutes || L.min) + ' min used' + (R.pausedMs >= 60000 ? ' · paused ' + fmtDur(R.pausedMs) : "") + '</span></div>' +
     '<div class="exscore"><span class="big ' + (R.pass ? "pass" : "fail") + '">' + R.scaled + '</span><span>estimated score of 1000 · ' + (R.pass ? "a pass" : "below the 700 pass mark") + ' · ' +
       Math.round(100 * R.pct) + '% of points, with partial credit on multi-part items</span></div>' +
+    (R.early ? '<p class="earlynote">You exited early, so this scores only the ' + R.scored + ' question' + (R.scored === 1 ? "" : "s") + ' you answered. ' + R.skipped + ' unanswered question' + (R.skipped === 1 ? " isn't" : "s aren't") + ' counted' +
+      ' and ' + (R.skipped === 1 ? "stays" : "stay") + ' new for your next mock exam.</p>' : "") +
     '<div class="scorewrap"><table class="scoretable"><thead><tr><th>Domain</th><th class="num">Right</th><th class="num">Points</th><th class="barcell"><span class="sr">Bar</span></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-    '<p class="scorenote">' + (missed ? missed + " question" + (missed > 1 ? "s" : "") + " you missed " + (missed > 1 ? (past ? "went" : "are now") : (past ? "went" : "is now")) + " into your Review tab." : "You got every question right.") + ' Microsoft scales scores, so this is a rough guide, not a prediction.' +
+    '<p class="scorenote">' + (missed ? missed + " question" + (missed > 1 ? "s" : "") + " you missed " + (past ? "went into" : missed > 1 ? "are now in" : "is now in") + " your Review tab." : "You got every question right.") + ' Microsoft scales scores, so this is a rough guide, not a prediction.' +
       (E.excl && E.excl.length ? ' This score leaves out ' + esc(E.excl.map(d => DOM_LABEL[d]).join(", ")) + ', which the real exam includes.' : "") + '</p>' +
     '<div class="exbtns" style="display:flex; flex-wrap:wrap; gap:8px">' +
     (past ? '<button class="btn check" id="exPastBack" type="button">Back to your exams</button>' : '<button class="btn check" id="exAgain" type="button">Take another exam</button><button class="btn" id="exToHist" type="button">History and domain stats</button>') +
@@ -3133,7 +3145,7 @@ function exRenderProgress(){
     sum = '<p class="sumline"><b>' + h.length + '</b> exam' + (h.length === 1 ? "" : "s") + ' · average <b>' + avg + '</b> · best <b>' + best + '</b> · last <b>' + sc[0] + '</b> · ' + passes + ' at 700 or more</p>';
   }
   const list = h.length ? '<h3 style="margin-top:6px">Every exam</h3><div class="scorewrap"><table class="exhist"><thead><tr><th>Date</th><th>Exam</th><th>Score</th><th>Time</th><th><span class="sr">Open</span></th></tr></thead><tbody>' +
-    h.map((x, k) => '<tr><td>' + esc(fmtWhen(x.at)) + '</td><td>' + esc(((EX_LENGTHS[x.len] || {}).label || "") + exWithout(x.excl)) + '</td><td><span class="pill ' + (x.pass ? "got" : "miss") + '">' + x.scaled + '</span></td><td>' + fmtDur(x.used) + '</td>' +
+    h.map((x, k) => '<tr><td>' + esc(fmtWhen(x.at)) + '</td><td>' + esc(((EX_LENGTHS[x.len] || {}).label || "") + exWithout(x.excl)) + (x.early ? '<span class="sub" style="display:block; color:var(--muted); font-size:.82rem">Exited early · ' + x.n + ' of ' + (x.total || x.n) + ' scored</span>' : "") + '</td><td><span class="pill ' + (x.pass ? "got" : "miss") + '">' + x.scaled + '</span></td><td>' + fmtDur(x.used) + '</td>' +
       '<td class="review">' + (x.rec && x.rec.result ? '<button class="textbtn" type="button" data-past="' + k + '">See answers</button>' : '<span class="nodet" title="Taken before answers were saved">Score only</span>') + '</td></tr>').join("") +
     '</tbody></table></div><button class="textbtn" id="exClearHist" type="button" style="align-self:flex-start">Clear exam history</button>' : "";
   $("exHistory").innerHTML = '<section class="exprog" id="exProg" aria-label="Your progress"><h3>Your mock exams by domain</h3>' + sum + focus +
@@ -3164,15 +3176,16 @@ function exConfirmOpen(kind){
   const btn = $(kind === "restart" ? "exRestartBtn" : "exExitBtn");
   if (!$("exConfirm").hidden && btn.getAttribute("aria-expanded") === "true") { exConfirmClose(); btn.focus(); return; }
   exConfirmClose();
-  const ids = ex.sections.flat(), done = ids.filter(exAnswered).length;
+  const ids = ex.sections.flat(), done = ids.filter(exTouched).length;
   if (kind === "restart") {
     $("exConfirmTitle").textContent = "Restart this exam?";
     $("exConfirmText").textContent = "Your " + done + " answer" + (done === 1 ? "" : "s") + " so far will be thrown away and the timer starts again at " + ex.minutes + " minutes. Nothing is saved to your history.";
     $("exConfirmBtns").innerHTML = '<button class="btn check" type="button" data-x="new">Start over with new questions</button><button class="btn" type="button" data-x="same">Same questions again</button><button class="btn" type="button" data-x="cancel">Keep going</button>';
   } else {
     $("exConfirmTitle").textContent = "Exit this exam?";
-    $("exConfirmText").textContent = "You've answered " + done + " of " + ids.length + ". Score it now to see your results (unanswered questions count as wrong), or leave without a score.";
-    $("exConfirmBtns").innerHTML = '<button class="btn check" type="button" data-x="score">Score what I\'ve answered</button><button class="btn danger" type="button" data-x="discard">Exit without scoring</button><button class="btn" type="button" data-x="cancel">Keep going</button>';
+    $("exConfirmText").textContent = done ? "You've answered " + done + " of " + ids.length + ". Score it now to see results for just the questions you answered (the " + (ids.length - done) + " unanswered aren't counted), or leave without a score."
+      : "You haven't answered any questions yet, so there's nothing to score.";
+    $("exConfirmBtns").innerHTML = (done ? '<button class="btn check" type="button" data-x="score">Score what I\'ve answered</button>' : "") + '<button class="btn danger" type="button" data-x="discard">Exit without scoring</button><button class="btn" type="button" data-x="cancel">Keep going</button>';
   }
   btn.setAttribute("aria-expanded", "true");
   $("exConfirm").hidden = false;
@@ -3205,7 +3218,7 @@ $("exConfirmBtns").addEventListener("click", e => {
   if (x === "cancel") { const open = document.querySelector('.exctl[aria-expanded="true"]'); exConfirmClose(); if (open) open.focus(); }
   else if (x === "new") exRestart(false);
   else if (x === "same") exRestart(true);
-  else if (x === "score") { exConfirmClose(); exFinish(false); }
+  else if (x === "score") { exConfirmClose(); exFinish(false, true); }
   else if (x === "discard") exDiscard();
 });
 document.addEventListener("keydown", e => {
