@@ -4,7 +4,8 @@ Study site for Microsoft exam AI-103, *Developing AI Apps and Agents on Azure*: 
 
 - 401 flashcards across every exam area: multiple choice, with an explanation for each wrong option, and sample code for cards that name a function
 - Fill-in-the-function cards built from Microsoft sample code
-- 213 practice questions in the exam's formats, including five case studies and the 8 missed on the Oct 21 practice exam; the newest 50 (Q164 to Q213) each name the study guide skill they test
+- 223 practice questions in the exam's formats, including five case studies and the 8 missed on the Oct 21 practice exam; the newest 50 (Q164 to Q213) each name the study guide skill they test
+- 10 schema fill-ins (Q214 to Q223): complete JSON tool, structured output, Content Understanding and Azure AI Search definitions
 - A timed mock exam with pause, restart, history and per-domain stats
 - A review list for everything you got wrong or flagged
 
