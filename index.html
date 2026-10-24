@@ -332,6 +332,9 @@ pre code{background:none; color:var(--ink); padding:0; font-size:inherit; overfl
 @media (max-width:420px){ .mode{padding:8px 10px; font-size:.9rem} }
 .textbtn{font:inherit; font-size:.88rem; background:none; border:0; color:var(--muted); text-decoration:underline; text-underline-offset:3px; cursor:pointer; padding:4px 0}
 .textbtn.armed{color:var(--miss)}
+.rheadbtns{display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px 14px}
+.revtools{display:flex; flex-wrap:wrap; gap:8px}
+.chip.revclear.armed{border-color:var(--miss); color:var(--miss); border-style:solid}
 .btn.armed{border-color:var(--rev); color:var(--rev)}
 .empty{background:var(--surface); border:1px dashed var(--line); border-radius:16px; padding:28px 20px; text-align:center; color:var(--muted); min-height:180px; display:flex; flex-direction:column; justify-content:center; gap:6px}
 .empty strong{color:var(--ink); font-family:var(--display); font-size:1.15rem}
@@ -615,14 +618,14 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
 
   <div class="view" id="reviewView" role="tabpanel" aria-labelledby="mode-review" hidden>
     <p class="lede">Everything you got wrong lands here automatically, along with anything you flagged with Add to review, written out in full so you can study it by scrolling. Remove an item once you know it, or use the buttons to drill a list as cards.</p>
-    <div class="revtools"><button class="chip toggle" id="hideAns" type="button" aria-pressed="false">Hide answers (quiz yourself)</button></div>
+    <div class="revtools"><button class="chip toggle" id="hideAns" type="button" aria-pressed="false">Hide answers (quiz yourself)</button><button class="chip revclear" id="revClearAll" type="button" data-clear="all">Remove all from review</button></div>
     <section class="rsec" aria-labelledby="rcTitle">
-      <div class="rhead"><h2 id="rcTitle">Flashcards<span class="rcount" id="rcCount"></span></h2><button class="btn rev" id="rcStudy" type="button">Study these flashcards</button></div>
+      <div class="rhead"><h2 id="rcTitle">Flashcards<span class="rcount" id="rcCount"></span></h2><span class="rheadbtns"><button class="btn rev" id="rcStudy" type="button">Study these flashcards</button><button class="textbtn revclear" id="rcClear" type="button" data-clear="c">Remove all</button></span></div>
       <div class="rsheet" id="rcList"></div>
       <p class="rnone" id="rcNone">No flashcards to review yet. Wrong answers and cards you flag show up here.</p>
     </section>
     <section class="rsec" aria-labelledby="rpTitle">
-      <div class="rhead"><h2 id="rpTitle">Practice questions<span class="rcount" id="rpCount"></span></h2><button class="btn rev" id="rpStudy" type="button">Practice these questions</button></div>
+      <div class="rhead"><h2 id="rpTitle">Practice questions<span class="rcount" id="rpCount"></span></h2><span class="rheadbtns"><button class="btn rev" id="rpStudy" type="button">Practice these questions</button><button class="textbtn revclear" id="rpClear" type="button" data-clear="p">Remove all</button></span></div>
       <div class="rsheet" id="rpList"></div>
       <p class="rnone" id="rpNone">No practice questions to review yet. Questions you get wrong and ones you flag show up here.</p>
     </section>
@@ -2285,6 +2288,7 @@ const LETTERS = "ABCDEFGH";
 function inl(s){ return esc(s).replace(/&lt;(\/?)code&gt;/g, "<$1code>"); }
 function pMatch(q, d){
   if (d === "all") return true;
+  if (d === "schema") return q.set === "schema";
   if (d === "case") return !!q.case;
   if (d.startsWith("case:")) return q.case === d.slice(5);
   return q.domain === d;
@@ -2305,6 +2309,8 @@ function pCur(){ return ps.order.length ? PBY[ps.order[ps.i]] : null; }
 (function buildPracticeChips(){
   const row = $("pDomains");
   const defs = [{id:"all", label:"All domains"}].concat(DOMAINS.map(d => ({id:d.id, label:d.label})));
+  // JSON definitions to complete (tool schemas, structured output, search index and analyzer definitions)
+  if (PRACTICE.some(q => q.set === "schema")) defs.push({id:"schema", label:"Schema fill-ins"});
   // Case studies: one chip for all of them, then one per company
   const caseIds = Object.keys(CASES);
   if (caseIds.length) defs.push({id:"case", label: caseIds.length > 1 ? "All case studies" : "Case study"});
@@ -2681,12 +2687,31 @@ function renderReview(){
   $("rcCount").textContent = cards.length; $("rpCount").textContent = qs.length;
   $("rcNone").hidden = cards.length > 0; $("rpNone").hidden = qs.length > 0;
   $("rcStudy").hidden = !cards.length; $("rpStudy").hidden = !qs.length;
+  $("rcClear").hidden = !cards.length; $("rpClear").hidden = !qs.length; $("revClearAll").hidden = !(cards.length && qs.length);
   $("rcList").innerHTML = cards.map(cardSheet).join("");
   $("rpList").innerHTML = qs.map(questionSheet).join("");
   ["rcList", "rpList"].forEach(id => $(id).classList.toggle("hideans", hideAns));
   $("hideAns").setAttribute("aria-pressed", String(hideAns));
   reviewTabCount();
 }
+// Remove everything from a review pile (or both); two taps, since it can't be undone
+const REV_CLEAR_LABEL = {all: "Remove all from review", c: "Remove all", p: "Remove all"};
+document.querySelectorAll(".revclear").forEach(b => b.addEventListener("click", () => {
+  const k = b.dataset.clear;
+  const nC = CARDS.filter(c => review[c.id]).length, nP = PRACTICE.filter(q => preview[q.id]).length;
+  const n = k === "c" ? nC : k === "p" ? nP : nC + nP;
+  if (!b.classList.contains("armed")) {
+    b.classList.add("armed"); b.textContent = "Tap again to remove " + n + " item" + (n === 1 ? "" : "s");
+    setTimeout(() => { b.classList.remove("armed"); b.textContent = REV_CLEAR_LABEL[k]; }, 4000);
+    return;
+  }
+  b.classList.remove("armed"); b.textContent = REV_CLEAR_LABEL[k];
+  if (k !== "p") { review = {}; saveReview(); }
+  if (k !== "c") { preview = {}; psaveReview(); }
+  renderReview();
+  const c = current(); rebuild(c ? c.id : null);
+  const q = pCur(); pRebuild(q ? q.id : null);
+}));
 $("hideAns").addEventListener("click", () => {
   hideAns = !hideAns;
   try { localStorage.setItem("ai103-review-hide", hideAns ? "1" : "0"); } catch (e) {}
