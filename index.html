@@ -647,6 +647,7 @@ table.yn tr.wrong td:first-child{box-shadow:inset 3px 0 0 var(--miss)}
       <div class="row">
         <button class="chip toggle revchip" id="pReviewOnly" type="button" aria-pressed="false">Review only <span class="n"></span></button>
         <button class="chip toggle" id="pMissedOnly" type="button" aria-pressed="false">Wrong only</button>
+        <button class="chip toggle" id="pNoCase" type="button" aria-pressed="false" title="Leave the case study questions out of Practice">Exclude case studies</button>
         <button class="chip toggle" id="pShuffle" type="button" aria-pressed="false">Shuffle</button>
         <button class="chip toggle" id="pUnshuffle" type="button" hidden>In order</button>
       </div>
@@ -1649,7 +1650,7 @@ function saveSession(){
     }
     if (typeof ps !== "undefined" && (mode === "practice" || !s.p)) {
       const q = pCur();
-      s.p = {dom: ps.dom, missedOnly: ps.missedOnly, reviewOnly: ps.reviewOnly, shuffle: ps.shuffle, order: ps.shuffle ? ps.order : null, id: q ? q.id : null};
+      s.p = {dom: ps.dom, missedOnly: ps.missedOnly, reviewOnly: ps.reviewOnly, noCase: ps.noCase, shuffle: ps.shuffle, order: ps.shuffle ? ps.order : null, id: q ? q.id : null};
     }
     localStorage.setItem(SKEY, JSON.stringify(s));
   } catch (e) {}
@@ -2291,7 +2292,7 @@ const PBY = Object.fromEntries(PRACTICE.map(q => [q.id, q]));
   PRACTICE.forEach(q => { q.num = N[q.id] || next++; });
   const m = document.getElementById("qMax"); if (m) m.textContent = Math.max(...PRACTICE.map(q => q.num));
 })();
-const ps = {dom:"all", missedOnly:false, reviewOnly:false, shuffle:false, order:[], i:0, checked:false, seq:[]};
+const ps = {dom:"all", missedOnly:false, reviewOnly:false, noCase:false, shuffle:false, order:[], i:0, checked:false, seq:[]};
 const LETTERS = "ABCDEFGH";
 
 // Options, actions and statements are plain text that may carry <code> tags
@@ -2303,7 +2304,7 @@ function pMatch(q, d){
   if (d.startsWith("case:")) return q.case === d.slice(5);
   return q.domain === d;
 }
-function pKept(q){ return !EXCL.has(q.domain); }
+function pKept(q){ return !EXCL.has(q.domain) && !(ps.noCase && q.case); }
 function pDomOff(d){ return d !== "all" && !PRACTICE.some(q => pMatch(q, d) && pKept(q)); }
 function pPool(){ return PRACTICE.filter(q => pMatch(q, ps.dom) && pKept(q) && (!ps.missedOnly || presults[q.id] === "wrong") && (!ps.reviewOnly || preview[q.id])).map(q => q.id); }
 function pRebuild(keepId){
@@ -2518,6 +2519,7 @@ function pShow(){
   });
   exclChips();
   $("pMissedOnly").setAttribute("aria-pressed", String(ps.missedOnly));
+  $("pNoCase").setAttribute("aria-pressed", String(ps.noCase));
   $("pReviewOnly").setAttribute("aria-pressed", String(ps.reviewOnly));
   $("pReviewOnly").querySelector(".n").textContent = PRACTICE.filter(q => pMatch(q, ps.dom) && pKept(q) && preview[q.id]).length;
   const pq = pCur(), pin = !!(pq && preview[pq.id]);
@@ -2569,6 +2571,7 @@ $("pCheck").addEventListener("click", pCheck);
 $("pPrev").addEventListener("click", () => pMove(-1));
 $("pNext").addEventListener("click", () => pMove(1));
 $("pMissedOnly").addEventListener("click", () => { ps.missedOnly = !ps.missedOnly; pRebuild(); });
+$("pNoCase").addEventListener("click", () => { ps.noCase = !ps.noCase; const q = pCur(); pRebuild(q && pKept(q) ? q.id : null); saveSession(); });
 $("pReviewOnly").addEventListener("click", () => { ps.reviewOnly = !ps.reviewOnly; pRebuild(); });
 $("pRevBtn").addEventListener("click", pToggleReview);
 $("pShuffle").addEventListener("click", () => {
@@ -2635,7 +2638,7 @@ $("mode-exam").addEventListener("click", () => setMode("exam"));
 const savedP = loadSession().p;
 if (savedP) {
   if ([...document.querySelectorAll("[data-pdom]")].some(b => b.dataset.pdom === savedP.dom)) ps.dom = savedP.dom;
-  ps.missedOnly = !!savedP.missedOnly; ps.reviewOnly = !!savedP.reviewOnly; ps.shuffle = !!savedP.shuffle;
+  ps.missedOnly = !!savedP.missedOnly; ps.reviewOnly = !!savedP.reviewOnly; ps.noCase = !!savedP.noCase; ps.shuffle = !!savedP.shuffle;
 }
 pRebuild(savedP && savedP.id);
 if (savedP && savedP.shuffle) {
